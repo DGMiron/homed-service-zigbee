@@ -16,6 +16,16 @@ namespace ActionsLUMI
 
     };
 
+    class Thermostat : public ActionObject
+    {
+
+    public:
+
+        Thermostat(void) : ActionObject("thermostat", CLUSTER_LUMI, MANUFACTURER_CODE_LUMI, QList <QString> {"targetTemperature", "systemMode", "fanMode"}) {}
+        QByteArray request(const QString &name, const QVariant &data) override;
+
+    };
+
     class ButtonMode : public ActionObject
     {
 
@@ -26,62 +36,22 @@ namespace ActionsLUMI
 
     };
 
-    class OperationMode : public ActionObject
+    class SwitchStatusMemory : public ActionObject
     {
 
     public:
 
-        OperationMode(void) : ActionObject("operationMode", CLUSTER_LUMI, MANUFACTURER_CODE_LUMI, 0x0009) {}
+        SwitchStatusMemory(void) : ActionObject("statusMemory", CLUSTER_LUMI, MANUFACTURER_CODE_LUMI, 0x0201) {}
         QByteArray request(const QString &name, const QVariant &data) override;
 
     };
 
-    class IndicatorMode : public ActionObject
+    class LightStatusMemory : public ActionObject
     {
 
     public:
 
-        IndicatorMode(void) : ActionObject("indicatorMode", CLUSTER_LUMI, MANUFACTURER_CODE_LUMI, 0x00F0) {}
-        QByteArray request(const QString &name, const QVariant &data) override;
-
-    };
-
-    class SwitchMode : public ActionObject
-    {
-
-    public:
-
-        SwitchMode(void) : ActionObject("switchMode", CLUSTER_LUMI, MANUFACTURER_CODE_LUMI, 0x0200) {}
-        QByteArray request(const QString &name, const QVariant &data) override;
-
-    };
-
-    class SwitchType : public ActionObject
-    {
-
-    public:
-
-        SwitchType(void) : ActionObject("switchType", CLUSTER_LUMI, MANUFACTURER_CODE_LUMI, 0x000A) {}
-        QByteArray request(const QString &name, const QVariant &data) override;
-
-    };
-
-    class StatusMemory : public ActionObject
-    {
-
-    public:
-
-        StatusMemory(void) : ActionObject("statusMemory", CLUSTER_LUMI, MANUFACTURER_CODE_LUMI, 0x0201) {}
-        QByteArray request(const QString &name, const QVariant &data) override;
-
-    };
-
-    class Interlock : public ActionObject
-    {
-
-    public:
-
-        Interlock(void) : ActionObject("interlock", CLUSTER_BINARY_OUTPUT, MANUFACTURER_CODE_LUMI, 0xFF06) {}
+        LightStatusMemory(void) : ActionObject("statusMemory", CLUSTER_BASIC, MANUFACTURER_CODE_LUMI, 0xFF19) {}
         QByteArray request(const QString &name, const QVariant &data) override;
 
     };
@@ -105,6 +75,43 @@ namespace ActionsLUMI
         QByteArray request(const QString &name, const QVariant &data) override;
 
     };
+
+    class OperationMode : public EnumAction
+    {
+
+    public:
+
+        OperationMode(void) : EnumAction("operationMode", CLUSTER_LUMI, MANUFACTURER_CODE_LUMI, 0x0009, DATA_TYPE_8BIT_UNSIGNED) {}
+
+    };
+
+    class IndicatorMode : public EnumAction
+    {
+
+    public:
+
+        IndicatorMode(void) : EnumAction("indicatorMode", CLUSTER_LUMI, MANUFACTURER_CODE_LUMI, 0x00F0, DATA_TYPE_8BIT_UNSIGNED) {}
+
+    };
+
+    class SwitchMode : public EnumAction
+    {
+
+    public:
+
+        SwitchMode(void) : EnumAction("switchMode", CLUSTER_LUMI, MANUFACTURER_CODE_LUMI, 0x0200, DATA_TYPE_8BIT_UNSIGNED) {}
+
+    };
+
+    class Language : public EnumAction
+    {
+
+    public:
+
+        Language(void) : EnumAction("language", CLUSTER_LUMI, MANUFACTURER_CODE_LUMI, 0x0210, DATA_TYPE_8BIT_UNSIGNED) {}
+
+    };
+
 }
 
 #endif

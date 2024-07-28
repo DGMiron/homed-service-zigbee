@@ -2,12 +2,6 @@
 #include "logger.h"
 #include "zigate.h"
 
-ZiGate::ZiGate(QSettings *config, QObject *parent) : Adapter(config, parent)
-{
-    m_networkKeyEnabled = config->value("security/enabled", false).toBool();
-    m_networkKey = QByteArray::fromHex(config->value("security/key", "000102030405060708090a0b0c0d0e0f").toString().remove("0x").toUtf8());
-}
-
 bool ZiGate::unicastRequest(quint8 id, quint16 networkAddress, quint8 srcEndPointId, quint8 dstEndPointId, quint16 clusterId, const QByteArray &payload)
 {
     return apsRequest(id, ADDRESS_MODE_16_BIT, networkAddress, srcEndPointId, dstEndPointId, clusterId, payload);
@@ -47,8 +41,7 @@ bool ZiGate::zdoRequest(quint8 id, quint16 networkAddress, quint16 clusterId, co
         case ZDO_NODE_DESCRIPTOR_REQUEST:   command = ZIGATE_NODE_DESCRIPTOR_REQUEST; break;
         case ZDO_SIMPLE_DESCRIPTOR_REQUEST: command = ZIGATE_SIMPLE_DESCRIPTOR_REQUEST; break;
         case ZDO_ACTIVE_ENDPOINTS_REQUEST:  command = ZIGATE_ACTIVE_ENDPOINTS_REQUEST; break;
-        case ZDO_LQI_REQUEST:               command = ZIGATE_LQI_REQUEST; break;
-        default:                            return false;
+        default: return false;
     }
 
     return sendRequest(command, QByteArray(reinterpret_cast <char*> (&dstAddress), sizeof(dstAddress)).append(data), id) && !m_replyStatus;
@@ -73,7 +66,7 @@ bool ZiGate::bindRequest(quint8 id, quint16, quint8 endpointId, quint16 clusterI
         memcpy(&dstAddress, &value, sizeof(value));
     }
 
-    return sendRequest(unbind ? ZIGATE_UNBIND_REQUEST : ZIGATE_BIND_REQUEST, QByteArray(reinterpret_cast <char*> (&request), sizeof(request)).append(reinterpret_cast <char*> (&dstAddress), request.dstAddressMode == ADDRESS_MODE_GROUP ? 2 : 8).append(static_cast <char> (dstEndpointId ? dstEndpointId : 1)), id) && !m_replyStatus;
+    return sendRequest(unbind ? ZIGATE_UNBIND_REQUEST : ZIGATE_BIND_REQUEST, QByteArray(reinterpret_cast <char*> (&request), sizeof(request)).append(reinterpret_cast <char*> (&dstAddress), request.dstAddressMode == ADDRESS_MODE_GROUP ? 2 : 8).append(static_cast <char> (dstEndpointId ? dstEndpointId : 0x01)), id) && !m_replyStatus;
 }
 
 bool ZiGate::leaveRequest(quint8 id, quint16 networkAddress)
@@ -84,8 +77,8 @@ bool ZiGate::leaveRequest(quint8 id, quint16 networkAddress)
 
 bool ZiGate::lqiRequest(quint8 id, quint16 networkAddress, quint8 index)
 {
-    quint16 data = qToBigEndian(networkAddress);
-    return sendRequest(ZIGATE_LQI_REQUEST, QByteArray(reinterpret_cast <char*> (&data), sizeof(data)).append(static_cast <quint8> (index)), id) && !m_replyStatus;
+    quint16 dstAddress = qToBigEndian(networkAddress);
+    return sendRequest(ZIGATE_LQI_REQUEST, QByteArray(reinterpret_cast <char*> (&dstAddress), sizeof(dstAddress)).append(static_cast <char> (index)), id) && !m_replyStatus;
 }
 
 quint8 ZiGate::getChecksum(const zigateHeaderStruct *header, const QByteArray &payload)
@@ -125,6 +118,7 @@ bool ZiGate::sendRequest(quint16 command, const QByteArray &data, quint8 id)
     m_commandReply = data.isEmpty();
     m_command = command;
 
+    m_replyStatus = 0xFF;
     m_replyData.clear();
     m_requestId = id;
 
@@ -162,7 +156,7 @@ void ZiGate::parsePacket(quint16 command, const QByteArray &payload)
     {
         case ZIGATE_STATUS:
         {
-            const statusStruct *data = reinterpret_cast <const statusStruct*> (payload.constData());
+            const zigateStatusStruct *data = reinterpret_cast <const zigateStatusStruct*> (payload.constData());
 
             if (m_command == qFromBigEndian(data->command))
             {
@@ -182,8 +176,8 @@ void ZiGate::parsePacket(quint16 command, const QByteArray &payload)
 
         case ZIGATE_DATA_INDICATION:
         {
-            const dataIndicatonStruct *message = reinterpret_cast <const dataIndicatonStruct*> (payload.constData());
-            quint8 offset = static_cast <quint8> (sizeof(dataIndicatonStruct));
+            const zigateDataIndicatonStruct *message = reinterpret_cast <const zigateDataIndicatonStruct*> (payload.constData());
+            quint8 offset = static_cast <quint8> (sizeof(zigateDataIndicatonStruct));
             quint16 networkAddress;
 
             if (payload.at(offset) != ADDRESS_MODE_16_BIT || (payload.at(offset + 3) != ADDRESS_MODE_GROUP && payload.at(offset + 3) != ADDRESS_MODE_16_BIT))
@@ -216,17 +210,20 @@ void ZiGate::parsePacket(quint16 command, const QByteArray &payload)
         case ZIGATE_RESTART_NON_FACTORY:
         case ZIGATE_RESTART_FACTORY:
         {
-            m_resetTimer->stop();
 
             if (!startCoordinator(command == ZIGATE_RESTART_FACTORY))
+            {
                 logWarning << "Coordinator startup failed";
+                break;
+            }
 
+            m_resetTimer->stop();
             break;
         }
 
         case ZIGATE_DATA_ACK:
         {
-            const dataAckStruct *message = reinterpret_cast <const dataAckStruct*> (payload.constData());
+            const zigateDataAcknowledgeStruct *message = reinterpret_cast <const zigateDataAcknowledgeStruct*> (payload.constData());
             auto it = m_requests.find(message->sequence);
 
             if (it != m_requests.end())
@@ -255,7 +252,7 @@ void ZiGate::parsePacket(quint16 command, const QByteArray &payload)
 
 bool ZiGate::startCoordinator(bool clear)
 {
-    networkStatusStruct networkStatus;
+    zigateNetworkStatusStruct networkStatus;
     quint32 channelList = qToBigEndian <quint32> (1 << m_channel);
 
     if (!sendRequest(ZIGATE_SET_RAW_MODE, QByteArray(1, 0x01)) || m_replyStatus)
@@ -303,7 +300,7 @@ bool ZiGate::startCoordinator(bool clear)
         return false;
     }
 
-    if (!sendRequest(ZIGATE_SET_NETWORK_KEY, QByteArray(1, m_networkKeyEnabled ? 0x02 : 0x01).append(m_networkKey)) || m_replyStatus)
+    if (!sendRequest(ZIGATE_SET_NETWORK_KEY, QByteArray(1, 0x02).append(m_networkKey)) || m_replyStatus)
     {
         logWarning << "Set network key request failed";
         return false;
@@ -329,7 +326,7 @@ bool ZiGate::startCoordinator(bool clear)
 
     for (int i = 0; i < m_multicast.length(); i++)
     {
-        addGroupStruct request;
+        zigateAddGroupStruct request;
 
         request.addressMode = ADDRESS_MODE_16_BIT;
         request.address = 0x0000;
@@ -350,7 +347,7 @@ bool ZiGate::startCoordinator(bool clear)
 
 bool ZiGate::apsRequest(quint8 id, quint8 addressMode, quint16 address, quint8 srcEndPointId, quint8 dstEndPointId, quint16 clusterId, const QByteArray &payload)
 {
-    apsRequestStruct request;
+    zigateApsRequestStruct request;
 
     request.addressMode = addressMode;
     request.address = qToBigEndian(address);
@@ -375,27 +372,29 @@ void ZiGate::parseData(QByteArray &buffer)
     while (!buffer.isEmpty())
     {
         int length = buffer.indexOf(0x03);
-        QByteArray frame, data;
+        QByteArray frame, packet;
 
         if (!buffer.startsWith(0x01) || length < 6)
             return;
 
         if (m_portDebug)
-            logInfo << "Packet received:" << buffer.mid(0, length + 1).toHex(':');
+            logInfo << "Frame received:" << buffer.mid(0, length + 1).toHex(':');
 
         frame = buffer.mid(1, length - 1);
 
         for (int i = 0; i < frame.length(); i++)
-            data.append(1, frame.at(i) == 0x02 ? frame.at(++i) ^ 0x10 : frame.at(i));
+            packet.append(1, frame.at(i) == 0x02 ? frame.at(++i) ^ 0x10 : frame.at(i));
 
-        m_queue.enqueue(data);
+        m_queue.enqueue(packet);
         buffer.remove(0, length + 1);
     }
 }
 
 bool ZiGate::permitJoin(bool enabled)
 {
-    if (!sendRequest(ZIGATE_SET_PERMIT_JOIN, QByteArray(2, 0x00).append(1, enabled ? 0xF0 : 0x00)) || m_replyStatus)
+    quint16 dstAddress = qToBigEndian <quint16> (PERMIT_JOIN_BROARCAST_ADDRESS);
+
+    if (!sendRequest(ZIGATE_SET_PERMIT_JOIN, QByteArray(reinterpret_cast <char*> (&dstAddress), sizeof(dstAddress)).append(1, enabled ? 0xF0 : 0x00)) || m_replyStatus)
     {
         logWarning << "Set permit join request failed";
         return false;

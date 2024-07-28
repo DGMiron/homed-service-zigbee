@@ -46,14 +46,14 @@ struct zigateHeaderStruct
     quint8  checksum;
 };
 
-struct statusStruct
+struct zigateStatusStruct
 {
     quint8  status;
     quint8  sequence;
     quint16 command;
 };
 
-struct networkStatusStruct
+struct zigateNetworkStatusStruct
 {
     quint16 networkAddress;
     quint64 ieeeAddress;
@@ -62,7 +62,7 @@ struct networkStatusStruct
     quint8  channel;
 };
 
-struct dataIndicatonStruct
+struct zigateDataIndicatonStruct
 {
     quint8  status;
     quint16 profileId;
@@ -71,7 +71,7 @@ struct dataIndicatonStruct
     quint8  dstEndpointId;
 };
 
-struct dataAckStruct
+struct zigateDataAcknowledgeStruct
 {
     quint8  status;
     quint16 networkAddress;
@@ -80,7 +80,7 @@ struct dataAckStruct
     quint8  sequence;
 };
 
-struct addGroupStruct
+struct zigateAddGroupStruct
 {
     quint8  addressMode;
     quint16 address;
@@ -89,7 +89,7 @@ struct addGroupStruct
     quint16 groupId;
 };
 
-struct apsRequestStruct
+struct zigateApsRequestStruct
 {
     quint8  addressMode;
     quint16 address;
@@ -110,7 +110,7 @@ class ZiGate : public Adapter
 
 public:
 
-    ZiGate(QSettings *config, QObject *parent);
+    ZiGate(QSettings *config, QObject *parent) : Adapter(config, parent) {}
 
     bool unicastRequest(quint8 id, quint16 networkAddress, quint8 srcEndPointId, quint8 dstEndPointId, quint16 clusterId, const QByteArray &payload) override;
     bool multicastRequest(quint8 id, quint16 groupId, quint8 srcEndPointId, quint8 dstEndPointId, quint16 clusterId, const QByteArray &payload) override;
@@ -128,14 +128,11 @@ public:
 
 private:
 
-    bool m_networkKeyEnabled;
-    QByteArray m_networkKey;
-
     bool m_commandReply;
     quint16 m_command;
 
     QByteArray m_replyData;
-    quint8 m_requestId, m_replyStatus;
+    quint8 m_requestId;
 
     QMap <quint8, quint8> m_requests;
 

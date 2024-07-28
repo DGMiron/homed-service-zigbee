@@ -3,59 +3,76 @@
 
 QByteArray ActionsLUMI::PresenceSensor::request(const QString &name, const QVariant &data)
 {
-    switch (m_actions.indexOf(name))
+    int index = m_actions.indexOf(name);
+
+    switch (index)
     {
-        case 0: // sensitivityMode
+        case 0 ... 2:
         {
-            QList <QString> list = {"low", "medium", "high"};
-            qint8 value = static_cast <qint8> (list.indexOf(data.toString()) + 1);
+            qint8 value = static_cast <qint8> (enumIndex(name, data));
 
-            m_attributes = {0x010C};
+            switch (index)
+            {
+                case 0: m_attributes = {0x010C}; break; // sensitivityMode
+                case 1: m_attributes = {0x0144}; break; // detectionMode
+                case 2: m_attributes = {0x0146}; break; // distanceMode
+            }
 
-            if (value < 1)
-                return QByteArray();
-
-            return writeAttributeRequest(m_transactionId++, m_manufacturerCode, m_attributes.at(0), DATA_TYPE_8BIT_UNSIGNED, QByteArray(reinterpret_cast <char*> (&value), sizeof(value)));
-        }
-
-        case 1: // detectionMode
-        {
-            QList <QString> list = {"undirected", "directed"};
-            qint8 value = static_cast <qint8> (list.indexOf(data.toString()));
-
-            m_attributes = {0x0144};
-
-            if (value < 0)
-                return QByteArray();
-
-            return writeAttributeRequest(m_transactionId++, m_manufacturerCode, m_attributes.at(0), DATA_TYPE_8BIT_UNSIGNED, QByteArray(reinterpret_cast <char*> (&value), sizeof(value)));
-        }
-
-        case 2: // distanceMode
-        {
-            QList <QString> list = {"far", "middle", "near"};
-            qint8 value = static_cast <qint8> (list.indexOf(data.toString()));
-
-            m_attributes = {0x0146};
-
-            if (value < 0)
-                return QByteArray();
-
-            return writeAttributeRequest(m_transactionId++, m_manufacturerCode, m_attributes.at(0), DATA_TYPE_8BIT_UNSIGNED, QByteArray(reinterpret_cast <char*> (&value), sizeof(value)));
+            return value < 0 ? QByteArray() : writeAttribute(DATA_TYPE_8BIT_UNSIGNED, &value, sizeof(value));
         }
 
         case 3: // resetPresence
         {
             m_attributes.clear();
-
-            if (!data.toBool())
-                return QByteArray();
-
-            return writeAttributeRequest(m_transactionId++, m_manufacturerCode, 0x0157, DATA_TYPE_8BIT_UNSIGNED, QByteArray(1, 0x01)); // TODO: check payload
+            return !data.toBool() ? QByteArray() : writeAttributeRequest(m_transactionId++, m_manufacturerCode, 0x0157, DATA_TYPE_8BIT_UNSIGNED, QByteArray(1, 0x01)); // TODO: check payload
         }
     }
 
     return QByteArray();
+}
+
+QByteArray ActionsLUMI::Thermostat::request(const QString &name, const QVariant &data)
+{
+    quint64 value;
+
+    switch (m_actions.indexOf(name))
+    {
+        case 0: // targetTemperature
+            value = static_cast <quint64> (0xFFFF - data.toDouble() * 100) << 48;
+            break;
+
+        case 1: // systemMode
+
+            if (endpointProperty("lumiData")->value().toMap().value("floor").toBool())
+            {
+                value = static_cast <quint64> (data.toString() == "off" ? 0xF7 : 0xE7) << 24;
+                break;
+            }
+
+            switch (enumIndex(name, data.toString()))
+            {
+                case 0:  value = 0xF0; break;
+                case 1:  value = 0x0F; break;
+                case 2:  value = 0x0E; break;
+                case 3:  value = 0x0B; break;
+                default: return QByteArray();
+            }
+
+            value <<= 24;
+            break;
+
+
+        case 2: // fanMode
+            value = static_cast <quint64> (0x0F - enumIndex(name, data.toString())) << 20;
+            break;
+
+        default:
+            return QByteArray();
+    }
+
+    value = qToLittleEndian(~value);
+    m_attributes = {0x024F};
+    return writeAttribute(DATA_TYPE_64BIT_UNSIGNED, &value, sizeof(value));
 }
 
 QByteArray ActionsLUMI::ButtonMode::request(const QString &name, const QVariant &data)
@@ -78,63 +95,19 @@ QByteArray ActionsLUMI::ButtonMode::request(const QString &name, const QVariant 
         default: return QByteArray();
     }
 
-    return writeAttributeRequest(m_transactionId++, m_manufacturerCode, m_attributes.at(0), DATA_TYPE_8BIT_UNSIGNED, QByteArray(reinterpret_cast <char*> (&value), sizeof(value)));
+    return writeAttribute(DATA_TYPE_8BIT_UNSIGNED, &value, sizeof(value));
 }
 
-QByteArray ActionsLUMI::OperationMode::request(const QString &, const QVariant &data)
-{
-    QList <QString> list = {"command", "event"};
-    qint8 value = static_cast <qint8> (list.indexOf(data.toString()));
-
-    if (value < 0)
-        return QByteArray();
-
-    return writeAttributeRequest(m_transactionId++, m_manufacturerCode, m_attributes.at(0), DATA_TYPE_8BIT_UNSIGNED, QByteArray(reinterpret_cast <char*> (&value), sizeof(value)));
-}
-
-QByteArray ActionsLUMI::IndicatorMode::request(const QString &, const QVariant &data)
-{
-    QList <QString> list = {"default", "inverted"};
-    qint8 value = static_cast <qint8> (list.indexOf(data.toString()));
-
-    if (value < 0)
-        return QByteArray();
-
-    return writeAttributeRequest(m_transactionId++, m_manufacturerCode, m_attributes.at(0), DATA_TYPE_8BIT_UNSIGNED, QByteArray(reinterpret_cast <char*> (&value), sizeof(value)));
-}
-
-QByteArray ActionsLUMI::SwitchMode::request(const QString &, const QVariant &data)
-{
-    QList <QString> list = {"decoupled", "relay"};
-    qint8 value = static_cast <qint8> (list.indexOf(data.toString()));
-
-    if (value < 0)
-        return QByteArray();
-
-    return writeAttributeRequest(m_transactionId++, m_manufacturerCode, m_attributes.at(0), DATA_TYPE_8BIT_UNSIGNED, QByteArray(reinterpret_cast <char*> (&value), sizeof(value)));
-}
-
-QByteArray ActionsLUMI::SwitchType::request(const QString &, const QVariant &data)
-{
-    QList <QString> list = {"toggle", "momentary"};
-    qint8 value = static_cast <qint8> (list.indexOf(data.toString()) + 1);
-
-    if (value < 1)
-        return QByteArray();
-
-    return writeAttributeRequest(m_transactionId++, m_manufacturerCode, m_attributes.at(0), DATA_TYPE_8BIT_UNSIGNED, QByteArray(reinterpret_cast <char*> (&value), sizeof(value)));
-}
-
-QByteArray ActionsLUMI::StatusMemory::request(const QString &, const QVariant &data)
+QByteArray ActionsLUMI::SwitchStatusMemory::request(const QString &, const QVariant &data)
 {
     quint8 value = data.toBool() ? 0x01 : 0x00;
-    return writeAttributeRequest(m_transactionId++, m_manufacturerCode, m_attributes.at(0), DATA_TYPE_BOOLEAN, QByteArray(reinterpret_cast <char*> (&value), sizeof(value)));
+    return writeAttribute(DATA_TYPE_BOOLEAN, &value, sizeof(value));
 }
 
-QByteArray ActionsLUMI::Interlock::request(const QString &, const QVariant &data)
+QByteArray ActionsLUMI::LightStatusMemory::request(const QString &, const QVariant &data)
 {
     quint8 value = data.toBool() ? 0x01 : 0x00;
-    return writeAttributeRequest(m_transactionId++, m_manufacturerCode, m_attributes.at(0), DATA_TYPE_BOOLEAN, QByteArray(reinterpret_cast <char*> (&value), sizeof(value)));
+    return writeAttribute(DATA_TYPE_BOOLEAN, &value, sizeof(value));
 }
 
 QByteArray ActionsLUMI::CoverPosition::request(const QString &, const QVariant &data)
@@ -144,21 +117,20 @@ QByteArray ActionsLUMI::CoverPosition::request(const QString &, const QVariant &
     if (value > 100)
         value = 100;
 
-    if (option("invertCover").toBool())
+    if (!option("invertCover").toBool())
         value = 100 - value;
 
     value = qToLittleEndian(value);
-    return writeAttributeRequest(m_transactionId++, m_manufacturerCode, m_attributes.at(0), DATA_TYPE_SINGLE_PRECISION, QByteArray(reinterpret_cast <char*> (&value), sizeof(value)));
+    return writeAttribute(DATA_TYPE_SINGLE_PRECISION, &value, sizeof(value));
 }
 
 QByteArray ActionsLUMI::VibrationSensitivity::request(const QString &, const QVariant &data)
 {
-    QList <QString> list = {"high", "medium", "low"};
-    qint8 value = static_cast <qint8> (list.indexOf(data.toString()));
+    qint8 value = listIndex({"high", "medium", "low"}, data);
 
     if (value < 0)
         return QByteArray();
 
     value = value * 10 + 1;
-    return writeAttributeRequest(m_transactionId++, m_manufacturerCode, m_attributes.at(0), DATA_TYPE_8BIT_UNSIGNED, QByteArray(reinterpret_cast <char*> (&value), sizeof(value)));
+    return writeAttribute(DATA_TYPE_8BIT_UNSIGNED, &value, sizeof(value));
 }

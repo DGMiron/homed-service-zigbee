@@ -1,85 +1,84 @@
 #ifndef ZSTACK_H
 #define ZSTACK_H
 
-#define ZSTACK_CONFIGURATION_MARKER                 0x42
-#define ZSTACK_CLEAR_DELAY                          4000
-#define ZSTACK_REQUEST_TIMEOUT                      10000
+#define ZSTACK_CONFIGURATION_MARKER             0x42
+#define ZSTACK_CLEAR_DELAY                      4000
+#define ZSTACK_REQUEST_TIMEOUT                  10000
 
-#define ZSTACK_SKIP_BOOTLOADER                      0xEF
-#define ZSTACK_PACKET_FLAG                          0xFE
-#define ZSTACK_COORDINATOR_STARTED                  0x09
+#define ZSTACK_SKIP_BOOTLOADER                  0xEF
+#define ZSTACK_PACKET_FLAG                      0xFE
+#define ZSTACK_COORDINATOR_STARTED              0x09
 
-#define PERMIT_JOIN_MODE_ADDREESS                   0x0F
-#define PERMIT_JOIN_BROARCAST_ADDRESS               0xFFFC
+#define ZSTACK_AF_ACK_REQUEST                   0x10
+#define ZSTACK_AF_DISCV_ROUTE                   0x20
+#define ZSTACK_AF_EN_SECURITY                   0x40
+#define ZSTACK_AF_SKIP_ROUTING                  0x80
+#define ZSTACK_AF_DEFAULT_RADIUS                0x0F
 
-#define AF_ACK_REQUEST                              0x10
-#define AF_DISCV_ROUTE                              0x20
-#define AF_EN_SECURITY                              0x40
-#define AF_SKIP_ROUTING                             0x80
-#define AF_DEFAULT_RADIUS                           0x0F
+#define ZSTACK_SYS_VERSION                      0x2102
+#define ZSTACK_SYS_OSAL_NV_ITEM_INIT            0x2107
+#define ZSTACK_SYS_OSAL_NV_READ                 0x2108
+#define ZSTACK_SYS_OSAL_NV_WRITE                0x2109
+#define ZSTACK_SYS_SET_TX_POWER                 0x2114
+#define ZSTACK_AF_REGISTER                      0x2400
+#define ZSTACK_AF_DATA_REQUEST                  0x2401
+#define ZSTACK_AF_DATA_REQUEST_EXT              0x2402
+#define ZSTACK_AF_INTER_PAN_CTL                 0x2410
+#define ZSTACK_ZDO_NODE_DESC_REQ                0x2502
+#define ZSTACK_ZDO_SIMPLE_DESC_REQ              0x2504
+#define ZSTACK_ZDO_ACTIVE_EP_REQ                0x2505
+#define ZSTACK_ZDO_BIND_REQ                     0x2521
+#define ZSTACK_ZDO_UNBIND_REQ                   0x2522
+#define ZSTACK_ZDO_MGMT_LQI_REQ                 0x2531
+#define ZSTACK_ZDO_MGMT_LEAVE_REQ               0x2534
+#define ZSTACK_ZDO_MGMT_PERMIT_JOIN_REQ         0x2536
+#define ZSTACK_ZDO_MSG_CB_REGISTER              0x253E
+#define ZSTACK_ZDO_STARTUP_FROM_APP             0x2540
+#define ZSTACK_ZDO_ADD_GROUP                    0x254B
+#define ZSTACK_ZB_READ_CONFIGURATION            0x2604
+#define ZSTACK_ZB_WRITE_CONFIGURATION           0x2605
+#define ZSTACK_UTIL_GET_DEVICE_INFO             0x2700
+#define ZSTACK_APP_CNF_BDB_SET_CHANNEL          0x2F08
 
-#define SYS_VERSION                                 0x2102
-#define SYS_OSAL_NV_ITEM_INIT                       0x2107
-#define SYS_OSAL_NV_READ                            0x2108
-#define SYS_OSAL_NV_WRITE                           0x2109
-#define AF_REGISTER                                 0x2400
-#define AF_DATA_REQUEST                             0x2401
-#define AF_DATA_REQUEST_EXT                         0x2402
-#define AF_INTER_PAN_CTL                            0x2410
-#define ZDO_NODE_DESC_REQ                           0x2502
-#define ZDO_SIMPLE_DESC_REQ                         0x2504
-#define ZDO_ACTIVE_EP_REQ                           0x2505
-#define ZDO_BIND_REQ                                0x2521
-#define ZDO_UNBIND_REQ                              0x2522
-#define ZDO_MGMT_LQI_REQ                            0x2531
-#define ZDO_MGMT_LEAVE_REQ                          0x2534
-#define ZDO_MGMT_PERMIT_JOIN_REQ                    0x2536
-#define ZDO_MSG_CB_REGISTER                         0x253E
-#define ZDO_STARTUP_FROM_APP                        0x2540
-#define ZB_READ_CONFIGURATION                       0x2604
-#define ZB_WRITE_CONFIGURATION                      0x2605
-#define UTIL_GET_DEVICE_INFO                        0x2700
-#define APP_CNF_BDB_SET_CHANNEL                     0x2F08
+#define ZSTACK_SYS_RESET_REQ                    0x4100
+#define ZSTACK_SYS_RESET_IND                    0x4180
+#define ZSTACK_AF_DATA_CONFIRM                  0x4480
+#define ZSTACK_AF_INCOMING_MSG                  0x4481
+#define ZSTACK_AF_INCOMING_MSG_EXT              0x4482
+#define ZSTACK_ZDO_NODE_DESC_RSP                0x4582
+#define ZSTACK_ZDO_SIMPLE_DESC_RSP              0x4584
+#define ZSTACK_ZDO_ACTIVE_EP_RSP                0x4585
+#define ZSTACK_ZDO_BIND_RSP                     0x45A1
+#define ZSTACK_ZDO_UNBIND_RSP                   0x45A2
+#define ZSTACK_ZDO_MGMT_LQI_RSP                 0x45B1
+#define ZSTACK_ZDO_MGMT_LEAVE_RSP               0x45B4
+#define ZSTACK_ZDO_MGMT_PERMIT_JOIN_RSP         0x45B6
+#define ZSTACK_ZDO_MGMT_NWK_UPDATE_RSP          0x45B8
+#define ZSTACK_ZDO_STATE_CHANGE_IND             0x45C0
+#define ZSTACK_ZDO_END_DEVICE_ANNCE_IND         0x45C1
+#define ZSTACK_ZDO_SRC_RTG_IND                  0x45C4
+#define ZSTACK_ZDO_CONCENTRATOR_IND             0x45C8
+#define ZSTACK_ZDO_LEAVE_IND                    0x45C9
+#define ZSTACK_ZDO_TC_DEV_IND                   0x45CA
+#define ZSTACK_ZDO_PERMIT_JOIN_IND              0x45CB
+#define ZSTACK_ZDO_MSG_CB_INCOMING              0x45FF
+#define ZSTACK_APP_CNF_BDB_COMMISSIONING        0x4F80
 
-#define SYS_RESET_REQ                               0x4100
-#define SYS_RESET_IND                               0x4180
-#define AF_DATA_CONFIRM                             0x4480
-#define AF_INCOMING_MSG                             0x4481
-#define AF_INCOMING_MSG_EXT                         0x4482
-#define ZDO_NODE_DESC_RSP                           0x4582
-#define ZDO_SIMPLE_DESC_RSP                         0x4584
-#define ZDO_ACTIVE_EP_RSP                           0x4585
-#define ZDO_BIND_RSP                                0x45A1
-#define ZDO_UNBIND_RSP                              0x45A2
-#define ZDO_MGMT_LQI_RSP                            0x45B1
-#define ZDO_MGMT_LEAVE_RSP                          0x45B4
-#define ZDO_MGMT_PERMIT_JOIN_RSP                    0x45B6
-#define ZDO_MGMT_NWK_UPDATE_RSP                     0x45B8
-#define ZDO_STATE_CHANGE_IND                        0x45C0
-#define ZDO_END_DEVICE_ANNCE_IND                    0x45C1
-#define ZDO_SRC_RTG_IND                             0x45C4
-#define ZDO_CONCENTRATOR_IND                        0x45C8
-#define ZDO_LEAVE_IND                               0x45C9
-#define ZDO_TC_DEV_IND                              0x45CA
-#define ZDO_PERMIT_JOIN_IND                         0x45CB
-#define ZDO_MSG_CB_INCOMING                         0x45FF
-#define APP_CNF_BDB_COMMISSIONING_NOTIFICATION      0x4F80
-
-#define ZCD_NV_STARTUP_OPTION                       0x0003
-#define ZCD_NV_MARKER                               0x0060
-#define ZCD_NV_PRECFGKEY                            0x0062
-#define ZCD_NV_PRECFGKEYS_ENABLE                    0x0063
-#define ZCD_NV_PANID                                0x0083
-#define ZCD_NV_CHANLIST                             0x0084
-#define ZCD_NV_LOGICAL_TYPE                         0x0087
-#define ZCD_NV_ZDO_DIRECT_CB                        0x008F
-#define ZCD_NV_TCLK_TABLE                           0x0101
+#define ZCD_NV_STARTUP_OPTION                   0x0003
+#define ZCD_NV_MARKER                           0x0060
+#define ZCD_NV_PRECFGKEY                        0x0062
+#define ZCD_NV_PRECFGKEYS_ENABLE                0x0063
+#define ZCD_NV_PANID                            0x0083
+#define ZCD_NV_CHANLIST                         0x0084
+#define ZCD_NV_LOGICAL_TYPE                     0x0087
+#define ZCD_NV_ZDO_DIRECT_CB                    0x008F
+#define ZCD_NV_TCLK_TABLE                       0x0101
 
 #include "adapter.h"
 
 #pragma pack(push, 1)
 
-struct versionResponseStruct
+struct zstackVersionStruct
 {
     quint8  transport;
     quint8  product;
@@ -89,7 +88,14 @@ struct versionResponseStruct
     quint32 build;
 };
 
-struct registerEndpointRequestStruct
+struct zstackAddGroupStruct
+{
+    quint8  endpointId;
+    quint16 groupId;
+    quint8  nameLength;
+};
+
+struct zstackRegisterEndpointStruct
 {
     quint8  endpointId;
     quint16 profileId;
@@ -98,7 +104,7 @@ struct registerEndpointRequestStruct
     quint8  latency;
 };
 
-struct permitJoinRequestStruct
+struct zstackPermitJoinStruct
 {
     quint8  mode;
     quint16 dstAddress;
@@ -106,7 +112,7 @@ struct permitJoinRequestStruct
     quint8  significance;
 };
 
-struct dataRequestStruct
+struct zstackDataRequestStruct
 {
     quint16 networkAddress;
     quint8  dstEndpointId;
@@ -118,7 +124,7 @@ struct dataRequestStruct
     quint8  length;
 };
 
-struct extendedDataRequestStruct
+struct zstackExtendedRequestStruct
 {
     quint8  dstAddressMode;
     quint64 dstAddress;
@@ -132,59 +138,59 @@ struct extendedDataRequestStruct
     quint16 length;
 };
 
-struct setChannelRequestStruct
+struct zstackSetChannelStruct
 {
     quint8  isPrimary;
     quint32 channel;
 };
 
-struct nvReadRequestStruct
+struct zstackNvReadStruct
 {
     quint16 id;
     quint8  offset;
 };
 
-struct nvReadReplyStruct
+struct zstackNvReplyStruct
 {
     quint8  status;
     quint8  length;
 };
 
-struct nvInitRequestStruct
+struct zstackNvInitStruct
 {
     quint16 id;
     quint16 itemLength;
     quint8  dataLength;
 };
 
-struct nvWriteRequestStruct
+struct zstackNvWriteStruct
 {
     quint16 id;
     quint8  offset;
     quint8  length;
 };
 
-struct readConfigurationReplyStruct
+struct zstackReadConfigurationStruct
 {
     quint8  status;
     quint8  id;
     quint8  length;
 };
 
-struct writeConfigurationRequestStruct
+struct zstackWriteConfigurationStruct
 {
     quint8  id;
     quint8  length;
 };
 
-struct dataConfirmStruct
+struct zstackDataConfirmStruct
 {
     quint8  status;
     quint8  endpointId;
     quint8  transactionId;
 };
 
-struct incomingMessageStruct
+struct zstackIncomingMessageStruct
 {
     quint16 groupId;
     quint16 clusterId;
@@ -199,7 +205,7 @@ struct incomingMessageStruct
     quint8  length;
 };
 
-struct extendedIncomingMessageStruct
+struct zstackExtendedMessageStruct
 {
     quint16 groupId;
     quint16 clusterId;
@@ -216,16 +222,7 @@ struct extendedIncomingMessageStruct
     quint16 length;
 };
 
-struct deviceLeaveStruct
-{
-    quint16 networkAddress;
-    quint64 ieeeAddress;
-    quint8  request;
-    quint8  remove;
-    quint8  rejoin;
-};
-
-struct zdoMessageStruct
+struct zstackZdoMessageStruct
 {
     quint16 srcAddress;
     quint8  broadcast;
@@ -233,6 +230,15 @@ struct zdoMessageStruct
     quint8  security;
     quint8  transactionId;
     quint16 dstAddress;
+};
+
+struct zstackDeviceLeaveStruct
+{
+    quint16 networkAddress;
+    quint64 ieeeAddress;
+    quint8  request;
+    quint8  remove;
+    quint8  rejoin;
 };
 
 #pragma pack(pop)

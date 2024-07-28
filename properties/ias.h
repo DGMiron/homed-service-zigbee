@@ -12,7 +12,17 @@ namespace PropertiesIAS
     public:
 
         ZoneStatus(const QString &name = "alarm") : PropertyObject(name, CLUSTER_IAS_ZONE) {}
-        void parseCommand(quint8 commandId, const QByteArray &payload) override;
+        void parseCommand(quint16 clusterId, quint8 commandId, const QByteArray &payload) override;
+        void resetValue(void) override;
+
+    };
+
+    class Warning : public PropertyObject
+    {
+
+    public:
+
+        Warning(void) : PropertyObject("warning", CLUSTER_IAS_WD) {}
         void resetValue(void) override;
 
     };
@@ -59,6 +69,15 @@ namespace PropertiesIAS
     public:
 
         WaterLeak(void) : ZoneStatus("waterLeak") {}
+
+    };
+
+    class Rain : public ZoneStatus
+    {
+
+    public:
+
+        Rain(void) : ZoneStatus("rain") {}
 
     };
 }

@@ -8,6 +8,12 @@ QByteArray ActionsPTVO::Status::request(const QString &, const QVariant &data)
 
 QByteArray ActionsPTVO::AnalogInput::request(const QString &, const QVariant &data)
 {
-    float value = qToLittleEndian(data.toFloat());
-    return writeAttributeRequest(m_transactionId++, m_manufacturerCode, m_attributes.at(0), DATA_TYPE_SINGLE_PRECISION, QByteArray(reinterpret_cast <char*> (&value), sizeof(value)));
+    float value = qToLittleEndian <float> (data.toFloat() * option(QString(m_name).append("Divider"), 1).toDouble());
+    return writeAttribute(DATA_TYPE_SINGLE_PRECISION, &value, sizeof(value));
+}
+
+QByteArray ActionsPTVO::SerialData::request(const QString &, const QVariant &data)
+{
+    QByteArray value = QByteArray::fromHex(data.toString().toUtf8());
+    return value.length() > 0x7F ? QByteArray() : writeAttributeRequest(m_transactionId++, m_manufacturerCode, 0x000E, DATA_TYPE_CHARACTER_STRING, QByteArray(1, static_cast <char> (value.length())).append(value));
 }

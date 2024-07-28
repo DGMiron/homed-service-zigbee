@@ -1,13 +1,122 @@
 {
+  "BYUN":
+  [
+    {
+      "description":    "BYUN Gas Sensor M415-5C",
+      "modelNames":     ["GAS  SENSOR"],
+      "properties":     ["byunGasSensor"],
+      "exposes":        ["gas"]
+    },
+    {
+      "description":    "BYUN Smoke Sensor M415-6C",
+      "modelNames":     ["Windows switch"],
+      "properties":     ["byunSmokeSensor"],
+      "exposes":        ["smoke"]
+    }
+  ],
+
+  "Feibit Inc co.":
+  [
+    {
+      "description":    "JIAWEN RGBW Bulb K2RGBW01",
+      "modelNames":     ["FB56-ZCW08KU1.0", "FB56-ZCW08KU1.1"],
+      "properties":     ["status", "powerOnStatus", "level", "colorXY", "colorTemperature", "colorMode"],
+      "actions":        ["status", "powerOnStatus", "level", "colorXY", "colorTemperature"],
+      "exposes":        ["light", "powerOnStatus"],
+      "options":        {"light": ["level", "color", "colorTemperature", "colorMode"]}
+    }
+  ],
+
+  "JetHome":
+  [
+    {
+      "description":    "JetHome Wireless Switch Controller WS7",
+      "modelNames":     ["WS7"],
+      "properties":     ["batteryPercentage"],
+      "bindings":       ["battery"],
+      "reportings":     ["batteryPercentage"],
+      "exposes":        ["battery"]
+    },
+    {
+      "modelNames":     ["WS7"],
+      "properties":     ["customAttributes"],
+      "exposes":        ["action"],
+      "options":        {"customAttributes": {"action": {"type": "enum", "clusterId": 18, "attributeId": 85, "dataType": 33}}, "action": {"enum": ["release", "singleClick", "doubleClick", "tripleClick", "hold"]}},
+      "endpointId":     [1, 2, 3]
+    }
+  ],
+
   "HEIMAN":
   [
     {
-      "description":    "Heiman Smoke Detector HS1SA",
-      "modelNames":     ["SmokeSensor-EM", "SmokeSensor-N"],
+      "description":    "Heiman Smoke Detector HS1SA or HS3SA",
+      "modelNames":     ["SmokeSensor-EF-3.0", "SmokeSensor-EM", "SmokeSensor-N", "SmokeSensor-N-3.0"],
       "properties":     ["batteryPercentage", "iasSmoke"],
       "bindings":       ["battery"],
       "reportings":     ["batteryPercentage"],
       "exposes":        ["battery", "smoke", "batteryLow"]
+    }
+  ],
+
+  "LifeConrol":
+  [
+    {
+      "description":    "Life Control 10A Smart Plug MCLH-03 with PTVO Firmware",
+      "modelNames":     ["ptvo_mclh03"],
+      "properties":     ["status"],
+      "actions":        ["status"],
+      "bindings":       ["status"],
+      "exposes":        ["switch"],
+      "endpointId":     1
+    },
+    {
+      "modelNames":     ["ptvo_mclh03"],
+      "properties":     ["energy", "voltage", "current", "power"],
+      "bindings":       ["energy", "power"],
+      "exposes":        ["energy", "voltage", "current", "power"],
+      "options":        {"energyDivider": 1000, "voltageDivider": 100, "currentDivider": 1000, "powerDivider": 10},
+      "endpointId":     2
+    }
+  ],
+
+  "Lmahmutov":
+  [
+    {
+      "description":    "Lmahmutov ESP32C6 CO2 Sensor",
+      "modelNames":     ["Air Sensor 1.1"],
+      "properties":     ["temperature", "humidity", "pressure", "co2"],
+      "bindings":       ["temperature", "humidity", "pressure", "co2"],
+      "reportings":     ["temperature", "humidity", "pressure", "co2"],
+      "exposes":        ["temperature", "humidity", "pressure", "co2"]
+    }
+  ],
+
+  "Lytko":
+  [
+    {
+      "description":    "Lytko Themostat L101Z-SBN",
+      "modelNames":     ["L101Z-SBN"],
+      "properties":     ["thermostat", "customAttributes"],
+      "actions":        ["thermostat", "customAttributes"],
+      "bindings":       ["thermostat"],
+      "reportings":     ["thermostat"],
+      "exposes":        ["thermostat", "childLock", "sensorType", "temperatureOffset", "hysteresis"],
+      "options":        {
+                          "customAttributes": {"sensorType": {"type": "enum", "clusterId": 513, "manufacturerCode": 30583, "attributeId": 30464, "dataType": 48, "action": true}},
+                          "systemMode": {"enum": ["off", "heat"]},
+                          "targetTemperature": {"min": 15, "max": 35, "step": 0.5},
+                          "temperatureOffset": {"min": -3, "max": 3, "step": 0.1},
+                          "hysteresis": {"min": 0, "max": 3, "step": 0.1},
+                          "sensorType": {"enum": ["3K3", "5K", "6K8", "10K", "12K", "14K8", "15K", "20K", "33K", "47K"]},
+                          "runningStatus": true
+                        },
+      "endpointId":     3
+    },
+    {
+      "modelNames":     ["L101Z-SBN"],
+      "properties":     ["childLock"],
+      "actions":        ["childLock"],
+      "endpointId":     1
     }
   ],
 
@@ -20,7 +129,7 @@
       "bindings":       ["deviceTemperature"],
       "reportings":     ["deviceTemperature"],
       "exposes":        ["temperature"],
-      "options":        {"temperature": "diagnostic"}
+      "options":        {"temperature": {"diagnostic": true}}
     }
   ],
 
@@ -29,10 +138,254 @@
     {
       "description":    "OpenLumi Router Bulb (HML004)",
       "modelNames":     ["HML004"],
-      "properties":     ["status", "level", "colorHS", "colorTemperature"],
+      "properties":     ["status", "level", "colorHS", "colorTemperature", "colorMode"],
       "actions":        ["status", "level", "colorHS", "colorTemperature"],
       "exposes":        ["light"],
-      "options":        {"light": ["level", "color", "colorTemperature"]}
+      "options":        {"light": ["level", "color", "colorTemperature", "colorMode"]}
+    }
+  ],
+
+  "RE":
+  [
+    {
+      "description":    "Perenio Door and Window Sensor PECWS01 with RE Firmware",
+      "modelNames":     ["lumi.sensor_magnet.aq2"],
+      "properties":     ["lumiBasic", "lumiContact"],
+      "exposes":        ["battery", "contact"]
+    }
+  ],
+
+  "SLS":
+  [
+    {
+      "description":    "SLS Temperature and CO2 sensor",
+      "modelNames":     ["AirQMon"],
+      "properties":     ["ptvoTemperature"],
+      "exposes":        ["temperature"],
+      "endpointId":     1
+    },
+    {
+      "modelNames":     ["AirQMon"],
+      "properties":     ["ptvoCO2"],
+      "exposes":        ["co2"],
+      "endpointId":     2
+    }
+  ],
+
+  "Slacky-DIY":
+  [
+    {
+      "description":    "TLSR8258 DIY Water Meter",
+      "modelNames":     ["Watermeter_TLSR8258"],
+      "options":        {"endpointName": {"1": "Hot", "2": "Cold"}}
+    },
+    {
+      "modelNames":     ["Watermeter_TLSR8258"],
+      "properties":     ["batteryPercentage"],
+      "bindings":       ["battery"],
+      "reportings":     ["batteryPercentage"],
+      "exposes":        ["battery"],
+      "endpointId":     1
+    },
+    {
+      "modelNames":     ["Watermeter_TLSR8258"],
+      "properties":     ["customAttributes"],
+      "actions":        ["customAttributes"],
+      "exposes":        ["hotPreset", "coldPreset", "pulseVolume"],
+      "options":        {
+                          "customAttributes":
+                          {
+                            "hotPreset":    {"type": "value", "clusterId": 1794, "attributeId": 61440, "dataType": 35, "action": true},
+                            "coldPreset":   {"type": "value", "clusterId": 1794, "attributeId": 61441, "dataType": 35, "action": true},
+                            "pulseVolume":  {"type": "value", "clusterId": 1794, "attributeId": 61442, "dataType": 33, "action": true}
+                          },
+                          "hotPreset": {"min": 0, "max": 1000000000},
+                          "coldPreset": {"min": 0, "max": 1000000000},
+                          "pulseVolume": {"min": 1, "max": 100}
+                        },
+      "endpointId":     3
+    },
+    {
+      "modelNames":     ["Watermeter_TLSR8258"],
+      "properties":     ["iasWaterLeak"],
+      "exposes":        ["waterLeak"],
+      "endpointId":     4
+    },
+    {
+      "modelNames":     ["Watermeter_TLSR8258"],
+      "properties":     ["customAttributes"],
+      "exposes":        ["volume"],
+      "bindings":       ["energy"],
+      "reportings":     ["energy"],
+      "options":        {"customAttributes": {"volume": {"type": "value", "clusterId": 1794, "attributeId": 0, "dataType": 37}}},
+      "endpointId":     [1, 2]
+    }
+  ],
+
+  "Sunricher":
+  [
+    {
+      "description":    "Sunricher Smart Dimmer SR-ZG2835RAC",
+      "modelNames":     ["HK-SL-DIM-EU-A", "HK-SL-RDIM-A"],
+      "properties":     ["status", "powerOnStatus", "level"],
+      "actions":        ["status", "powerOnStatus", "level"],
+      "bindings":       ["status", "level"],
+      "reportings":     ["status", "level"],
+      "exposes":        ["light", "powerOnStatus"],
+      "options":        {"light": ["level"]}
+    },
+    {
+      "description":    "Sunricher 4-Channel Wireless Dimmer SR-ZG9001K12-DIM-Z4",
+      "modelNames":     ["ZGRC-KEY-013"],
+      "properties":     ["batteryPercentage"],
+      "bindings":       ["battery"],
+      "reportings":     ["batteryPercentage"],
+      "exposes":        ["battery"],
+      "endpointId":     1
+    },
+    {
+      "modelNames":     ["ZGRC-KEY-013"],
+      "properties":     ["statusAction", "levelAction", "scene"],
+      "bindings":       ["status", "level", "scene"],
+      "exposes":        ["action", "scene"],
+      "options":        {"action": {"enum": ["on", "off", "moveLevelUp", "moveLevelDown", "stopLevel"]}},
+      "endpointId":     [1, 2, 3, 4]
+    }
+  ],
+
+  "TexasInstruments":
+  [
+    {
+      "description":    "Texas Instruments Router",
+      "modelNames":     ["ti.router"],
+      "properties":     ["customAttributes"],
+      "actions":        ["customAttributes"],
+      "exposes":        ["transmitPower"],
+      "options":        {
+                          "customAttributes": {"transmitPower": {"type": "value", "clusterId": 0, "attributeId": 4919, "dataType": 40, "action": true}},
+                          "transmitPower": {"min": -20, "max": 20}
+                        },
+      "endpointId":     8
+    }
+  ],
+
+  "Trust International B.V.":
+  [
+    {
+      "description":    "Trust Dimmable Bulb with Changable Color Temperature ZLED-TUNE9",
+      "modelNames":     ["ZLL-ColorTempera", "ZLL-ColorTemperature"],
+      "properties":     ["status", "powerOnStatus", "level", "colorTemperature"],
+      "actions":        ["status", "powerOnStatus", "level", "colorTemperature"],
+      "exposes":        ["light", "powerOnStatus"],
+      "options":        {"light": ["level", "colorTemperature"]}
+    },
+    {
+      "description":    "Trust Dimmable Bulb ZLED-2709",
+      "modelNames":     ["ZLL-DimmableLigh"],
+      "properties":     ["status", "powerOnStatus", "level"],
+      "actions":        ["status", "powerOnStatus", "level"],
+      "exposes":        ["light", "powerOnStatus"],
+      "options":        {"light": ["level"]}
+    }
+  ],
+
+  "Xiaomi":
+  [
+    {
+      "description":    "Xiaomi Temperature and Humidity Sensor LYWSD03MMC (Type A)",
+      "modelNames":     ["LYWSD03MMC"],
+      "properties":     ["batteryPercentage", "temperature", "humidity", "displayMode", "customAttributes"],
+      "actions":        ["displayMode", "customAttributes"],
+      "bindings":       ["battery", "temperature", "humidity"],
+      "reportings":     ["batteryPercentage", "temperature", "humidity"],
+      "exposes":        ["battery", "temperature", "humidity", "enableDisplay", "showSmiley", "displayMode", "temperatureOffset", "humidityOffset"],
+      "options":        {
+                          "customAttributes":
+                          {
+                            "showSmiley":         {"type": "bool",  "clusterId": 516,  "attributeId": 16, "dataType": 16, "action": true},
+                            "enableDisplay":      {"type": "bool",  "clusterId": 516,  "attributeId": 17, "dataType": 16, "action": true},
+                            "temperatureOffset":  {"type": "value", "clusterId": 1026, "attributeId": 16, "dataType": 41, "divider": 100, "action": true},
+                            "humidityOffset":     {"type": "value", "clusterId": 1029, "attributeId": 16, "dataType": 41, "divider": 100, "action": true}
+                          },
+                          "temperatureOffset": {"min": -10, "max": 10, "step": 0.1},
+                          "humidityOffset": {"min": -50, "max": 50},
+                          "reporting": {"minInterval": 60}
+                        }
+    },
+    {
+      "description":    "Xiaomi Temperature and Humidity Sensor LYWSD03MMC (Type B)",
+      "modelNames":     ["LYWSD03MMC-z", "LYWSD03MMC-bz"],
+      "properties":     ["batteryPercentage", "temperature", "humidity", "customAttributes"],
+      "actions":        ["customAttributes"],
+      "bindings":       ["battery", "temperature", "humidity"],
+      "reportings":     ["batteryPercentage", "temperature", "humidity"],
+      "exposes":        ["battery", "temperature", "humidity", "enableDisplay", "showSmiley", "readInterval", "temperatureOffset", "humidityOffset"],
+      "options":        {
+                          "customAttributes":
+                          {
+                            "showSmiley":         {"type": "enum",  "clusterId": 516, "attributeId": 2,   "dataType": 48, "action": true},
+                            "temperatureOffset":  {"type": "value", "clusterId": 516, "attributeId": 256, "dataType": 41, "divider": 10, "action": true},
+                            "humidityOffset":     {"type": "value", "clusterId": 516, "attributeId": 257, "dataType": 41, "divider": 10, "action": true},
+                            "enableDisplay":      {"type": "enum",  "clusterId": 516, "attributeId": 262, "dataType": 48, "action": true},
+                            "readInterval":       {"type": "value", "clusterId": 516, "attributeId": 263, "dataType": 32, "action": true}
+                          },
+                          "showSmiley": {"enum": [true, false]},
+                          "temperatureOffset": {"min": -10, "max": 10, "step": 0.1},
+                          "humidityOffset": {"min": -50, "max": 50},
+                          "enableDisplay": {"enum": [true, false]},
+                          "readInterval": {"min": 3, "max": 255}
+                        }
+    }
+  ],
+
+  "eWeLight":
+  [
+    {
+      "description":    "Lonsonho RGBW Bulb ZB-CL01 or ZB-CL02",
+      "modelNames":     ["ZB-CL01", "ZB-CL02"],
+      "properties":     ["status", "level", "colorXY", "colorTemperature", "colorMode"],
+      "actions":        ["status", "level", "colorXY", "colorTemperature"],
+      "exposes":        ["light"],
+      "options":        {"light": ["level", "color", "colorTemperature", "colorMode"]}
+    }
+  ],
+
+  "eWeLink":
+  [
+    {
+      "description":    "Woolley 13A Smart Plug BSD29",
+      "modelNames":     ["CK-BL702-SWP-01(7020)"],
+      "properties":     ["status", "customAttributes"],
+      "actions":        ["status"],
+      "bindings":       ["status"],
+      "reportings":     ["status"],
+      "exposes":        ["switch", "voltage", "current", "power"],
+      "options":        {
+                          "customAttributes":
+                          {
+                            "current":  {"type": "value", "clusterId": 64529, "attributeId": 28676, "dataType": 35, "divider": 1000},
+                            "voltage":  {"type": "value", "clusterId": 64529, "attributeId": 28676, "dataType": 35, "divider": 1000},
+                            "power":    {"type": "value", "clusterId": 64529, "attributeId": 28678, "dataType": 35, "divider": 1000}
+                          },
+                          "powerSource": 1,
+                          "switch": "outlet"
+                        }
+    },
+    {
+      "description":    "TUYA RGBW Bulb CK-BL702-AL-01",
+      "modelNames":     ["CK-BL702-AL-01(7009_Z102LG03-1)", "CK-BL702-AL-01(7009_Z102LG04-2)"],
+      "properties":     ["status", "powerOnStatus", "level", "colorXY", "colorTemperature", "colorMode"],
+      "actions":        ["status", "powerOnStatus", "level", "colorXY", "colorTemperature"],
+      "exposes":        ["light", "powerOnStatus"],
+      "options":        {"light": ["level", "color", "colorTemperature", "colorMode"], "colorTemperature": {"min": 142, "max": 500}}
+    },
+    {
+      "description":    "TUYA Smart Plug SA-003",
+      "modelNames":     ["SA-003-Zigbee"],
+      "properties":     ["status"],
+      "actions":        ["status"],
+      "bindings":       ["status"],
+      "exposes":        ["switch"]
     }
   ],
 
@@ -43,7 +396,7 @@
       "modelNames":     ["ptvo.switch-zr02"],
       "properties":     ["ptvoButtonAction"],
       "exposes":        ["action"],
-      "options":        {"action": ["singleClick", "doubleClick", "hold", "release"]},
+      "options":        {"action": {"enum": ["release", "singleClick", "doubleClick", "tripleClick", "hold"]}},
       "endpointId":     1
     },
     {
@@ -58,49 +411,6 @@
       "properties":     ["ptvoTemperature"],
       "exposes":        ["temperature"],
       "endpointId":     3
-    }
-  ],
-
-  "RE":
-  [
-    {
-      "description":    "Perenio Door and Window Sensor PECWS01 with RE Firmware",
-      "modelNames":     ["lumi.sensor_magnet.aq2"],
-      "properties":     ["lumiBasic", "lumiContact"],
-      "exposes":        ["battery", "contact"]
-    }
-  ],
-
-  "Signify Netherlands B.V.":
-  [
-    {
-      "description":    "Philips Hue Dimmable Bulb A67 (1600lm)",
-      "modelNames":     ["LWA009"],
-      "properties":     ["status", "powerOnStatus", "level"],
-      "actions":        ["status", "powerOnStatus", "level"],
-      "exposes":        ["light", "powerOnStatus"],
-      "options":        {"light": ["level"], "powerOnStatus": {"enum": ["on", "off", "previous"]}},
-      "endpointId":     11
-    }
-  ],
-
-  "Trust International B.V.":
-  [
-    {
-      "description":    "Trust Dimmable Bulb with Changable Color Temperature ZLED-TUNE9",
-      "modelNames":     ["ZLL-ColorTempera", "ZLL-ColorTemperature"],
-      "properties":     ["status", "powerOnStatus", "level", "colorTemperature"],
-      "actions":        ["status", "powerOnStatus", "level", "colorTemperature"],
-      "exposes":        ["light", "powerOnStatus"],
-      "options":        {"light": ["level", "colorTemperature"], "colorTemperature": {"min": 153, "max": 500}, "powerOnStatus": {"enum": ["on", "off", "previous"]}}
-    },
-    {
-      "description":    "Trust Dimmable Bulb ZLED-2709",
-      "modelNames":     ["ZLL-DimmableLigh"],
-      "properties":     ["status", "powerOnStatus", "level"],
-      "actions":        ["status", "powerOnStatus", "level"],
-      "exposes":        ["light", "powerOnStatus"],
-      "options":        {"light": ["level"], "powerOnStatus": {"enum": ["on", "off", "previous"]}}
     }
   ]
 }

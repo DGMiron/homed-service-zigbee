@@ -1,129 +1,170 @@
 #include <QtEndian>
 #include "other.h"
 
-void PropertiesOther::KonkeButtonAction::parseAttribte(quint16 attributeId, const QByteArray &data)
+void PropertiesByun::Sensor::parseCommand(quint16 clusterId, quint8 commandId, const QByteArray &payload)
 {
-    if (attributeId != 0x0000)
+    quint16 value = 0;
+
+    if (clusterId != CLUSTER_IAS_ZONE || commandId != 0x00)
         return;
 
-    switch (static_cast <quint8> (data.at(0)))
-    {
-        case 0x80: m_value = "singleClick"; break;
-        case 0x81: m_value = "doubleClick"; break;
-        case 0x82: m_value = "hold"; break;
-    }
-}
+    memcpy(&value, payload.constData(), sizeof(value));
 
-void PropertiesOther::SonoffButtonAction::parseCommand(quint8 commandId, const QByteArray &)
-{
-    switch (commandId)
-    {
-        case 0x00: m_value = "hold"; break;
-        case 0x01: m_value = "doubleClick"; break;
-        case 0x02: m_value = "singleClick"; break;
-    }
-}
-
-void PropertiesOther::ModkamButtonAction::parseAttribte(quint16 attributeId, const QByteArray &data)
-{
-    if (attributeId != 0x0055)
+    if (qFromLittleEndian(value) != 0x0021)
         return;
 
-    switch (static_cast <quint8> (data.at(0)))
-    {
-        case 0x00: m_value = "hold"; break;
-        case 0x01: m_value = "singleClick"; break;
-        case 0x02: m_value = "doubleClick"; break;
-        case 0x03: m_value = "tripleClick"; break;
-        case 0x04: m_value = "quadrupleClick"; break;
-        case 0xFF: m_value = "release"; break;
-        default:   m_value = "multipleClick"; break;
-    }
+    m_value = true;
 }
 
-void PropertiesOther::LifeControlAirQuality::parseAttribte(quint16 attributeId, const QByteArray &data)
+void PropertiesByun::Sensor::parseAttribte(quint16 clusterId, quint16 attributeId, const QByteArray &data)
 {
-    QMap <QString, QVariant> map = m_value.toMap();
     qint16 value = 0;
 
-    if (static_cast <size_t> (data.length()) > sizeof(value))
+    if (clusterId == CLUSTER_IAS_ZONE || attributeId != 0x0000 || static_cast <size_t> (data.length()) > sizeof(value))
         return;
 
     memcpy(&value, data.constData(), data.length());
 
-    switch (attributeId)
-    {
-        case 0x0000: map.insert("temperature", qFromLittleEndian(value) / 100.0 + option("temperatureOffset").toDouble()); break;
-        case 0x0001: map.insert("humidity", qFromLittleEndian(value) / 100.0 + option("humidityOffset").toDouble()); break;
-        case 0x0002: map.insert("eco2", qFromLittleEndian(value)); break;
-        case 0x0003: map.insert("voc", qFromLittleEndian(value)); break;
-    }
+    if (qFromLittleEndian(value))
+        return;
 
-    m_value = map.isEmpty() ? QVariant() : map;
+    m_value = false;
 }
 
-void PropertiesOther::PerenioSmartPlug::parseAttribte(quint16 attributeId, const QByteArray &data)
+void PropertiesIKEA::Occupancy::parseCommand(quint16, quint8 commandId, const QByteArray &payload)
 {
-    QMap <QString, QVariant> map = m_value.toMap();
+    quint16 value = 0;
 
-    switch (attributeId)
+    if (commandId != 0x42)
+        return;
+
+    memcpy(&value, payload.constData(), sizeof(value));
+    m_timeout = qFromLittleEndian(value) / 10;
+    m_value = true;
+}
+
+void PropertiesIKEA::Occupancy::resetValue(void)
+{
+    m_value = false;
+}
+
+void PropertiesIKEA::StatusAction::parseCommand(quint16, quint8 commandId, const QByteArray &)
+{
+    if (meta().value("time").toLongLong() + 1000 > QDateTime::currentMSecsSinceEpoch())
+        return;
+
+    switch (commandId)
     {
-        case 0x0000:
-        {
-            switch (static_cast <quint8> (data.at(0)))
-            {
-                case 0x00: map.insert("powerOnStatus", "off"); break;
-                case 0x01: map.insert("powerOnStatus", "on"); break;
-                case 0x02: map.insert("powerOnStatus", "prevoious"); break;
-            }
+        case 0x00: m_value = "off"; break;
+        case 0x01: m_value = "on"; break;
+    }
+}
 
+void PropertiesIKEA::ArrowAction::parseCommand(quint16, quint8 commandId, const QByteArray &payload)
+{
+    switch (commandId)
+    {
+        case 0x07:
+
+            if (payload.at(0) == 2)
+                return;
+
+            m_value = payload.at(0) ? "leftClick" : "rightClick";
             break;
-        }
 
-        case 0x0001:
-        {
-            map.insert("alarmVoltateMin",  data.at(0) & 0x01 ? true : false);
-            map.insert("alarmVoltateMax",  data.at(0) & 0x02 ? true : false);
-            map.insert("alarmPowerMax",    data.at(0) & 0x04 ? true : false);
-            map.insert("alarmEnergyLimit", data.at(0) & 0x08 ? true : false);
+        case 0x08:
+            meta().insert("arrow", payload.at(0) ? "left" : "right");
+            m_value = meta().value("arrow").toString().append("Hold");
             break;
-        }
 
-        case 0x000E:
-        {
-            quint32 value = 0;
+        case 0x09:
 
-            if (static_cast <size_t> (data.length()) > sizeof(value))
-                break;
+            meta().insert("time", QDateTime::currentMSecsSinceEpoch());
 
-            memcpy(&value, data.constData(), data.length());
-            map.insert("energy", static_cast <double> (qFromLittleEndian(value)) / 1000);
+            if (!meta().contains("arrow"))
+                return;
+
+            m_value = meta().value("arrow").toString().append("Release");
+            meta().remove("arrow");
             break;
-        }
+    }
+}
 
-        default:
-        {
-            quint16 value = 0;
+void PropertiesCustom::Command::parseCommand(quint16, quint8 commandId, const QByteArray &)
+{
+    m_value = enumValue(m_name, commandId);
+}
 
-            if (static_cast <size_t> (data.length()) > sizeof(value))
-                break;
+void PropertiesCustom::Attribute::parseAttribte(quint16, quint16 attributeId, const QByteArray &data)
+{
+    QList <QString> types = {"bool", "value", "enum"}; // TODO: refactor this
+    QByteArray buffer = data;
+    QVariant value;
 
-            memcpy(&value, data.constData(), data.length());
-            value = qFromLittleEndian(value);
+    if (attributeId != m_attributeId)
+        return;
 
-            switch (attributeId)
-            {
-                case 0x0003: map.insert("voltage", value); break;
-                case 0x0004: map.insert("voltageMin", value); break;
-                case 0x0005: map.insert("voltageMax", value); break;
-                case 0x000A: map.insert("power", value); break;
-                case 0x000B: map.insert("powerMax", value); break;
-                case 0x000F: map.insert("energyLimit", value); break;
-            }
+    if (buffer.length() < 8)
+        buffer.append(8 - buffer.length(), 0x00);
 
+    switch (m_dataType)
+    {
+        case DATA_TYPE_BOOLEAN:
+        case DATA_TYPE_8BIT_ENUM:
+        case DATA_TYPE_8BIT_UNSIGNED:
+            value = static_cast <quint8> (buffer.at(0));
             break;
-        }
+
+        case DATA_TYPE_8BIT_SIGNED:
+            value = static_cast <qint8> (buffer.at(0));
+            break;
+
+        case DATA_TYPE_16BIT_UNSIGNED:
+            value = qFromLittleEndian <quint16> (*(reinterpret_cast <quint16*> (buffer.data())));
+            break;
+
+        case DATA_TYPE_16BIT_SIGNED:
+            value = qFromLittleEndian <qint16> (*(reinterpret_cast <qint16*> (buffer.data())));
+            break;
+
+        case DATA_TYPE_24BIT_UNSIGNED:
+        case DATA_TYPE_32BIT_UNSIGNED:
+            value = qFromLittleEndian <quint32> (*(reinterpret_cast <quint32*> (buffer.data())));
+            break;
+
+        case DATA_TYPE_24BIT_SIGNED:
+        case DATA_TYPE_32BIT_SIGNED:
+            value = qFromLittleEndian <qint32> (*(reinterpret_cast <qint32*> (buffer.data())));
+            break;
+
+        case DATA_TYPE_40BIT_UNSIGNED:
+        case DATA_TYPE_48BIT_UNSIGNED:
+        case DATA_TYPE_56BIT_UNSIGNED:
+        case DATA_TYPE_64BIT_UNSIGNED:
+            value = qFromLittleEndian <quint64> (*(reinterpret_cast <quint64*> (buffer.data())));
+            break;
+
+        case DATA_TYPE_40BIT_SIGNED:
+        case DATA_TYPE_48BIT_SIGNED:
+        case DATA_TYPE_56BIT_SIGNED:
+        case DATA_TYPE_64BIT_SIGNED:
+            value = qFromLittleEndian <qint64> (*(reinterpret_cast <qint64*> (buffer.data())));
+            break;
+
+        case DATA_TYPE_SINGLE_PRECISION:
+            value = qFromLittleEndian <float> (*(reinterpret_cast <float*> (buffer.data())));
+            break;
+
+        case DATA_TYPE_DOUBLE_PRECISION:
+            value = qFromLittleEndian <double> (*(reinterpret_cast <double*> (buffer.data())));
+            break;
     }
 
-    m_value = map.isEmpty() ? QVariant() : map;
+    switch (types.indexOf(m_type))
+    {
+        case 0: m_value = value.toInt() ? true : false; break;     // bool
+        case 1: m_value = value.toDouble() / m_divider; break;     // value
+        case 2: m_value = enumValue(m_name, value.toInt()); break; // enum
+    }
 }
+

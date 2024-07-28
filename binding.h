@@ -47,6 +47,15 @@ namespace Bindings
 
     };
 
+    class Scene : public BindingObject
+    {
+
+    public:
+
+        Scene(void) : BindingObject("scene", CLUSTER_SCENES) {}
+
+    };
+
     class Status : public BindingObject
     {
 
@@ -83,12 +92,57 @@ namespace Bindings
 
     };
 
+    class AnalogOutput : public BindingObject
+    {
+
+    public:
+
+        AnalogOutput(void) : BindingObject("analogOutput", CLUSTER_ANALOG_OUTPUT) {}
+
+    };
+
     class MultistateInput : public BindingObject
     {
 
     public:
 
         MultistateInput(void) : BindingObject("multistateInput", CLUSTER_MULTISTATE_INPUT) {}
+
+    };
+
+    class PollControl : public BindingObject
+    {
+
+    public:
+
+        PollControl(void) : BindingObject("pollControl", CLUSTER_POLL_CONTROL) {}
+
+    };
+
+    class Cover : public BindingObject
+    {
+
+    public:
+
+        Cover(void) : BindingObject("cover", CLUSTER_WINDOW_COVERING) {}
+
+    };
+
+    class Thermostat : public BindingObject
+    {
+
+    public:
+
+        Thermostat(void) : BindingObject("thermostat", CLUSTER_THERMOSTAT) {}
+
+    };
+
+    class Fan : public BindingObject
+    {
+
+    public:
+
+        Fan(void) : BindingObject("fan", CLUSTER_FAN_CONTROL) {}
 
     };
 
@@ -99,7 +153,7 @@ namespace Bindings
 
         Color(void) : BindingObject("color", CLUSTER_COLOR_CONTROL) {}
 
-    };
+    };    
 
     class Illuminance : public BindingObject
     {
@@ -133,7 +187,16 @@ namespace Bindings
 
     public:
 
-        Humidity(void) : BindingObject("temperature", CLUSTER_RELATIVE_HUMIDITY) {}
+        Humidity(void) : BindingObject("temperature", CLUSTER_HUMIDITY_MEASUREMENT) {}
+
+    };
+
+    class Occupancy : public BindingObject
+    {
+
+    public:
+
+        Occupancy(void) : BindingObject("occupancy", CLUSTER_OCCUPANCY_SENSING) {}
 
     };
 
@@ -142,7 +205,7 @@ namespace Bindings
 
     public:
 
-        Moisture(void) : BindingObject("moisture", CLUSTER_SOIL_MOISTURE) {}
+        Moisture(void) : BindingObject("moisture", CLUSTER_MOISTURE_MEASUREMENT) {}
 
     };
 
@@ -152,6 +215,15 @@ namespace Bindings
     public:
 
         CO2(void) : BindingObject("co2", CLUSTER_CO2_CONCENTRATION) {}
+
+    };
+
+    class PM25 : public BindingObject
+    {
+
+    public:
+
+        PM25(void) : BindingObject("pm25", CLUSTER_PM25_CONCENTRATION) {}
 
     };
 

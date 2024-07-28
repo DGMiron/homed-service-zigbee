@@ -1,11 +1,13 @@
 include(../homed-common/homed-color.pri)
 include(../homed-common/homed-common.pri)
+include(../homed-common/homed-endpoint.pri)
 include(../homed-common/homed-gpio.pri)
 
 HEADERS += \
     action.h \
     actions/common.h \
     actions/efekta.h \
+    actions/ias.h \
     actions/lumi.h \
     actions/other.h \
     actions/ptvo.h \
@@ -14,9 +16,7 @@ HEADERS += \
     binding.h \
     controller.h \
     device.h \
-    expose.h \
     ezsp.h \
-    meta.h \
     poll.h \
     properties/common.h \
     properties/efekta.h \
@@ -30,12 +30,14 @@ HEADERS += \
     zcl.h \
     zigate.h \
     zigbee.h \
-    zstack.h
+    zstack.h \
+    zboss.h
 
 SOURCES += \
     action.cpp \
     actions/common.cpp \
     actions/efekta.cpp \
+    actions/ias.cpp \
     actions/lumi.cpp \
     actions/other.cpp \
     actions/ptvo.cpp \
@@ -44,9 +46,7 @@ SOURCES += \
     binding.cpp \
     controller.cpp \
     device.cpp \
-    expose.cpp \
     ezsp.cpp \
-    meta.cpp \
     poll.cpp \
     properties/common.cpp \
     properties/efekta.cpp \
@@ -60,13 +60,15 @@ SOURCES += \
     zcl.cpp \
     zigate.cpp \
     zigbee.cpp \
-    zstack.cpp
+    zstack.cpp \
+    zboss.cpp
 
 DISTFILES += \
     deploy/data/usr/share/homed-zigbee/efekta.json \
     deploy/data/usr/share/homed-zigbee/gledopto.json \
     deploy/data/usr/share/homed-zigbee/gs.json \
     deploy/data/usr/share/homed-zigbee/homed.json \
+    deploy/data/usr/share/homed-zigbee/hue.json \
     deploy/data/usr/share/homed-zigbee/ikea.json \
     deploy/data/usr/share/homed-zigbee/konke.json \
     deploy/data/usr/share/homed-zigbee/lifecontrol.json \

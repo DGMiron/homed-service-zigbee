@@ -12,7 +12,7 @@ namespace PropertiesEfekta
     public:
 
         ReportingDelay(void) : PropertyObject("reportingDelay", CLUSTER_POWER_CONFIGURATION) {}
-        void parseAttribte(quint16 attributeId, const QByteArray &data) override;
+        void parseAttribte(quint16 clusterId, quint16 attributeId, const QByteArray &data) override;
 
     };
 
@@ -22,7 +22,7 @@ namespace PropertiesEfekta
     public:
 
         TemperatureSettings(void) : PropertyObject("temperatureSettings", CLUSTER_TEMPERATURE_MEASUREMENT) {}
-        void parseAttribte(quint16 attributeId, const QByteArray &data) override;
+        void parseAttribte(quint16 clusterId, quint16 attributeId, const QByteArray &data) override;
 
     };
 
@@ -31,18 +31,28 @@ namespace PropertiesEfekta
 
     public:
 
-        HumiditySettings(void) : PropertyObject("humiditySettings", CLUSTER_RELATIVE_HUMIDITY) {}
-        void parseAttribte(quint16 attributeId, const QByteArray &data) override;
+        HumiditySettings(void) : PropertyObject("humiditySettings", CLUSTER_HUMIDITY_MEASUREMENT) {}
+        void parseAttribte(quint16 clusterId, quint16 attributeId, const QByteArray &data) override;
 
     };
 
-    class CO2Sensor : public PropertyObject
+    class CO2Settings : public PropertyObject
     {
 
     public:
 
-        CO2Sensor(void) : PropertyObject("co2Sensor", CLUSTER_CO2_CONCENTRATION) {}
-        void parseAttribte(quint16 attributeId, const QByteArray &data) override;
+        CO2Settings(void) : PropertyObject("co2Settings", CLUSTER_CO2_CONCENTRATION) {}
+        void parseAttribte(quint16 clusterId, quint16 attributeId, const QByteArray &data) override;
+
+    };
+
+    class PMSensor : public PropertyObject
+    {
+
+    public:
+
+        PMSensor(void) : PropertyObject("pmSenosor", CLUSTER_PM25_CONCENTRATION) {}
+        void parseAttribte(quint16 clusterId, quint16 attributeId, const QByteArray &data) override;
 
     };
 
@@ -52,7 +62,7 @@ namespace PropertiesEfekta
     public:
 
         VOCSensor(void) : PropertyObject("vocSensor", CLUSTER_ANALOG_INPUT) {}
-        void parseAttribte(quint16 attributeId, const QByteArray &data) override;
+        void parseAttribte(quint16 clusterId, quint16 attributeId, const QByteArray &data) override;
 
     };
 }

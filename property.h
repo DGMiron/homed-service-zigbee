@@ -1,27 +1,37 @@
 #ifndef PROPERTY_H
 #define PROPERTY_H
 
+#include <QQueue>
 #include <QSharedPointer>
 #include <QVariant>
-#include "meta.h"
+#include "endpoint.h"
+
+struct PropertyRequest
+{
+    quint16 clusterId;
+    QByteArray data;
+};
 
 class PropertyObject;
 typedef QSharedPointer <PropertyObject> Property;
 
-class PropertyObject : public MetaObject
+class PropertyObject : public AbstractMetaObject
 {
 
 public:
 
+    PropertyObject(const QString &name, QList <quint16> clusters = {}) :
+        AbstractMetaObject(name), m_clusters(clusters), m_multiple(false), m_timeout(0), m_time(0), m_transactionId(0) {}
+
     PropertyObject(const QString &name, quint16 clusterId) :
-        MetaObject(name), m_clusterId(clusterId), m_multiple(false), m_timeout(0), m_time(0), m_transactionId(0) {}
+        AbstractMetaObject(name), m_clusters({clusterId}), m_multiple(false), m_timeout(0), m_time(0), m_transactionId(0) {}
 
     virtual ~PropertyObject(void) {}
-    virtual void parseAttribte(quint16, const QByteArray &) {}
-    virtual void parseCommand(quint8, const QByteArray &) {}
+    virtual void parseAttribte(quint16, quint16, const QByteArray &) {}
+    virtual void parseCommand(quint16, quint8, const QByteArray &) {}
     virtual void resetValue(void) {}
 
-    inline quint16 clusterId(void) { return m_clusterId; }
+    inline QList <quint16> &clusters(void) { return m_clusters; }
 
     inline bool multiple(void) { return m_multiple; }
     inline void setMultiple(bool value) { m_multiple = value; }
@@ -32,8 +42,6 @@ public:
     inline qint64 time(void) { return m_time; }
     inline void setTime(qint64 value) { m_time = value; }
 
-    inline QMap <QString, QVariant> &meta(void) { return m_meta; }
-
     inline quint8 transactionId(void) { return m_transactionId; }
     inline void setTransactionId(quint8 value) { m_transactionId = value; }
 
@@ -41,21 +49,40 @@ public:
     inline void setValue(const QVariant &value) { m_value = value; }
     inline void clearValue(void) { m_value = QVariant(); }
 
+    inline QQueue <PropertyRequest> &queue(void) { return m_queue; }
     static void registerMetaTypes(void);
 
 protected:
 
-    quint16 m_clusterId;
+    QList <quint16> m_clusters;
     bool m_multiple;
 
     quint32 m_timeout;
     qint64 m_time;
 
-    QMap <QString, QVariant> m_meta;
     quint8 m_transactionId;
     QVariant m_value;
 
+    QQueue <PropertyRequest> m_queue;
+
     quint8 percentage(double min, double max, double value);
+    QVariant enumValue(const QString &name, int index);
+
+};
+
+class EnumProperty : public PropertyObject
+{
+
+public:
+
+    EnumProperty(const QString &name, quint16 clusterId, quint16 attributeId) :
+        PropertyObject(name, clusterId), m_attributeId(attributeId) {}
+
+    void parseAttribte(quint16 clusterId, quint16 attributeId, const QByteArray &data) override;
+
+private:
+
+    quint16 m_attributeId;
 
 };
 

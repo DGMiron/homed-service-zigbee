@@ -42,14 +42,19 @@ class DataRequestObject
 
 public:
 
-    DataRequestObject(const Device &device, quint8 endpointId, quint16 clusterId, const QByteArray &data, const QString &name) :
-        m_device(device), m_endpointId(endpointId), m_clusterId(clusterId), m_data(data), m_name(name) {}
+    DataRequestObject(const Device &device, quint8 endpointId, quint16 clusterId, const QByteArray &data, const QString &name, bool debug, quint16 manufacturerCode, const Action &action) :
+        m_device(device), m_endpointId(endpointId), m_clusterId(clusterId), m_data(data), m_name(name), m_debug(debug), m_manufacturerCode(manufacturerCode), m_action(action) {}
 
     inline Device device(void) { return m_device; }
     inline quint8 endpointId(void) { return m_endpointId; }
     inline quint16 clusterId(void) { return m_clusterId; }
     inline QByteArray data(void) { return m_data; }
+
     inline QString name(void) { return m_name; }
+    inline bool debug(void) { return m_debug; }
+
+    inline quint16 manufacturerCode(void) { return m_manufacturerCode; }
+    inline Action &action(void) { return m_action; }
 
 private:
 
@@ -57,7 +62,12 @@ private:
     quint8 m_endpointId;
     quint16 m_clusterId;
     QByteArray m_data;
+
     QString m_name;
+    bool m_debug;
+
+    quint16 m_manufacturerCode;
+    Action m_action;
 
 };
 
@@ -66,10 +76,10 @@ class RequestObject
 
 public:
 
-    RequestObject(const QVariant &request, RequestType type) :
-        m_request(request), m_type(type), m_status(RequestStatus::Pending) {}
+    RequestObject(const QVariant &data, RequestType type) :
+        m_data(data), m_type(type), m_status(RequestStatus::Pending) {}
 
-    inline QVariant request(void) { return m_request; }
+    inline QVariant data(void) { return m_data; }
     inline RequestType type(void) { return m_type; }
 
     inline RequestStatus status(void) { return m_status; }
@@ -77,7 +87,7 @@ public:
 
 private:
 
-    QVariant m_request;
+    QVariant m_data;
     RequestType m_type;
     RequestStatus m_status;
 
@@ -102,7 +112,10 @@ public:
         deviceUpdated,
         interviewFinished,
         interviewError,
-        interviewTimeout
+        interviewTimeout,
+        clusterRequest,
+        globalRequest,
+        requestFinished
     };
 
     Q_ENUM(Event)
@@ -112,18 +125,19 @@ public:
 
     void init(void);
     void setPermitJoin(bool enabled);
+    void togglePermitJoin(void);
 
+    void updateDevice(const QString &deviceName, const QString &name, const QString &note, bool active, bool discovery, bool cloud);
     void removeDevice(const QString &deviceName, bool force);
-    void setDeviceName(const QString &deviceName, const QString &name);
-
-    void updateDevice(const QString &deviceName, bool reportings);
-    void updateReporting(const QString &deviceName, quint8 endpointId, const QString &reportingName, quint16 minInterval, quint16 maxInterval, quint16 valueChange);
+    
+    void setupDevice(const QString &deviceName, bool reportings);
+    void setupReporting(const QString &deviceName, quint8 endpointId, const QString &reportingName, quint16 minInterval, quint16 maxInterval, quint16 valueChange);
 
     void bindingControl(const QString &deviceName, quint8 endpointId, quint16 clusterId, const QVariant &dstAddress, quint8 dstEndpointId, bool unbind);
     void groupControl(const QString &deviceName, quint8 endpointId, quint16 groupId, bool remove);
     void removeAllGroups(const QString &deviceName, quint8 endpointId);
 
-    void otaUpgrade(const QString &deviceName, quint8 endpointId, const QString &fileName);
+    void otaUpgrade(const QString &deviceName, quint8 endpointId, const QString &fileName, bool force);
     void getProperties(const QString &deviceName);
 
     void clusterRequest(const QString &deviceName, quint8 endpointId, quint16 clusterId, quint16 manufacturerCode, quint8 commandId, const QByteArray &payload, bool global);
@@ -137,19 +151,23 @@ private:
     QSettings *m_config;
     QTimer *m_requestTimer, *m_neignborsTimer, *m_pingTimer, *m_statusLedTimer;
 
-    DeviceList *m_devices;
     Adapter *m_adapter;
+    DeviceList *m_devices;
 
     QMetaEnum m_events;
-    quint8 m_requestId, m_requestStatus, m_interPanChannel;
+    quint8 m_requestId, m_requestStatus, m_replyId, m_interPanChannel;
     bool m_replyReceived, m_interPanLock;
 
-    QString m_statusLedPin, m_blinkLedPin, m_otaUpgradeFile;
-    bool m_debug;
+    QString m_statusLedPin, m_blinkLedPin;
+    bool m_debounce, m_discovery, m_cloud, m_debug;
+
+    Device m_otaDevice;
+    QFile m_otaFile;
+    bool m_otaForce;
 
     QMap <quint8, Request> m_requests;
 
-    void enqueueRequest(const Device &device, quint8 endpointId, quint16 clusterId, const QByteArray &data, const QString &name = QString());
+    void enqueueRequest(const Device &device, quint8 endpointId, quint16 clusterId, const QByteArray &data, const QString &name = QString(), bool debug = false, quint16 manufacturerCode = 0, const Action &action = Action());
     void enqueueRequest(const Device &device, RequestType type);
 
     bool interviewRequest(quint8 id, const Device &device);
@@ -161,6 +179,7 @@ private:
     bool bindRequest(const Device &device, quint8 endpointId, quint16 clusterId, const QByteArray &address = QByteArray(), quint8 dstEndpointId = 0, bool unbind = false);
     bool configureReporting(const Device &device, quint8 endpointId, const Reporting &reporting);
     bool configureDevice(const Device &device);
+    bool parseProperty(const Endpoint &endpoint, quint16 clusterId, quint8 transactionId, quint16 itemId, const QByteArray &data, bool command = false);
 
     void parseAttribute(const Endpoint &endpoint, quint16 clusterId, quint8 transactionId, quint16 attributeId, quint8 dataType, const QByteArray &data);
     void clusterCommandReceived(const Endpoint &endpoint, quint16 clusterId, quint16 manufacturerCode, quint8 transactionId, quint8 commandId, const QByteArray &payload);
@@ -172,6 +191,7 @@ private:
     void interviewTimeoutHandler(const Device &device);
     void rejoinHandler(const Device &device);
 
+    void otaError(const Endpoint &endpoint, quint16 manufacturerCode, quint8 transactionId, quint8 commandId, const QString &error = QString());
     void blink(quint16 timeout);
 
 private slots:
@@ -199,8 +219,9 @@ private slots:
 
 signals:
 
-    void deviceEvent(const Device &device, ZigBee::Event event);
-    void endpointUpdated(const Device &device, quint8 endpointId);
+    void networkStarted(void);
+    void deviceEvent(DeviceObject *device, ZigBee::Event event, const QJsonObject &json = QJsonObject());
+    void endpointUpdated(DeviceObject *device, quint8 endpointId);
     void statusUpdated(const QJsonObject &json);
     void replyReceived(void);
 

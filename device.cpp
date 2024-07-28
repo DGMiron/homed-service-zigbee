@@ -1,11 +1,16 @@
 #include <QFile>
 #include "actions/common.h"
+#include "actions/other.h"
 #include "properties/common.h"
 #include "properties/ias.h"
+#include "properties/other.h"
 #include "controller.h"
+#include "logger.h"
 
-DeviceList::DeviceList(QSettings *config, QObject *parent) : QObject(parent), m_databaseTimer(new QTimer(this)), m_propertiesTimer(new QTimer(this)), m_names(false), m_permitJoin(false), m_sync(false)
+DeviceList::DeviceList(QSettings *config, QObject *parent) : QObject(parent), m_config(config), m_databaseTimer(new QTimer(this)), m_propertiesTimer(new QTimer(this)), m_names(false), m_permitJoin(false), m_sync(false)
 {
+    QFile file(m_config->value("device/expose", "/usr/share/homed-common/expose.json").toString());
+
     PropertyObject::registerMetaTypes();
     ActionObject::registerMetaTypes();
     BindingObject::registerMetaTypes();
@@ -13,12 +18,19 @@ DeviceList::DeviceList(QSettings *config, QObject *parent) : QObject(parent), m_
     PollObject::registerMetaTypes();
     ExposeObject::registerMetaTypes();
 
-    m_databaseFile.setFileName(config->value("device/database", "/opt/homed-zigbee/database.json").toString());
-    m_propertiesFile.setFileName(config->value("device/properties", "/opt/homed-zigbee/properties.json").toString());
-    m_optionsFile.setFileName(config->value("device/options", "/opt/homed-zigbee/options.json").toString());
-    m_externalDir.setPath(config->value("device/external", "/opt/homed-zigbee/external").toString());
-    m_libraryDir.setPath(config->value("device/library", "/usr/share/homed-zigbee").toString());
-    m_offsets = config->value("device/offsets", true).toBool();
+    m_databaseFile.setFileName(m_config->value("device/database", "/opt/homed-zigbee/database.json").toString());
+    m_propertiesFile.setFileName(m_config->value("device/properties", "/opt/homed-zigbee/properties.json").toString());
+    m_optionsFile.setFileName(m_config->value("device/options", "/opt/homed-zigbee/options.json").toString());
+    m_externalDir.setPath(m_config->value("device/external", "/opt/homed-zigbee/external").toString());
+    m_libraryDir.setPath(m_config->value("device/library", "/usr/share/homed-zigbee").toString());
+
+    if (file.open(QFile::ReadOnly))
+    {
+        m_exposeOptions = QJsonDocument::fromJson(file.readAll()).object().toVariantMap();
+        file.close();
+    }
+
+    m_specialExposes = {"light", "switch", "cover", "lock", "thermostat", "thermostatProgram"};
 
     connect(m_databaseTimer, &QTimer::timeout, this, &DeviceList::writeDatabase);
     connect(m_propertiesTimer, &QTimer::timeout, this, &DeviceList::writeProperties);
@@ -37,6 +49,7 @@ DeviceList::~DeviceList(void)
 
 void DeviceList::init(void)
 {
+    QList <QString> list = {"previous", "enabled"};
     QJsonObject json;
 
     if (!m_databaseFile.open(QFile::ReadOnly))
@@ -44,7 +57,14 @@ void DeviceList::init(void)
 
     json = QJsonDocument::fromJson(m_databaseFile.readAll()).object();
     unserializeDevices(json.value("devices").toArray());
-    m_permitJoin = json.value("permitJoin").toBool();
+
+    switch (list.indexOf(m_config->value("device/join").toString()))
+    {
+        case 0:  m_permitJoin = json.value("permitJoin").toBool(); break;
+        case 1:  m_permitJoin = true; break;
+        default: m_permitJoin = false; break;
+    }
+
     m_databaseFile.close();
 
     if (!m_propertiesFile.open(QFile::ReadOnly))
@@ -52,6 +72,17 @@ void DeviceList::init(void)
 
     unserializeProperties(QJsonDocument::fromJson(m_propertiesFile.readAll()).object());
     m_propertiesFile.close();
+}
+
+void DeviceList::storeDatabase(void)
+{
+    m_sync = true;
+    m_databaseTimer->start(STORE_DATABASE_DELAY);
+}
+
+void DeviceList::storeProperties(void)
+{
+    m_propertiesTimer->start(STORE_PROPERTIES_DELAY);
 }
 
 Device DeviceList::byName(const QString &name)
@@ -87,6 +118,7 @@ void DeviceList::identityHandler(const Device &device, QString &manufacturerName
     QList <QString> lumi =
     {
         "aqara",
+        "Aqara",
         "XIAOMI"
     };
 
@@ -119,6 +151,12 @@ void DeviceList::identityHandler(const Device &device, QString &manufacturerName
         return;
     }
 
+    if (manufacturerName.contains("efekta", Qt::CaseInsensitive))
+    {
+        manufacturerName = "EFEKTA";
+        return;
+    }
+
     if (manufacturerName == "GLEDOPTO" && modelName == "GL-C-007")
     {
         QMap <quint8, quint16> map;
@@ -136,7 +174,7 @@ void DeviceList::identityHandler(const Device &device, QString &manufacturerName
         return;
     }
 
-    if (QRegExp("^TS\\d{3}[0-9F][AB]{0,1}$").exactMatch(modelName) || manufacturerName.startsWith("TUYA"))
+    if (QRegExp("^TS\\d{3}[0-9F][AB]{0,1}$").exactMatch(modelName) || QRegExp("^_TZ[2,3,E]\\d{3}_\\S+$").exactMatch(manufacturerName) || manufacturerName.startsWith("_TYZB01_") || manufacturerName.startsWith("TUYA"))
     {
         modelName = manufacturerName;
         manufacturerName = "TUYA";
@@ -147,7 +185,9 @@ void DeviceList::setupDevice(const Device &device)
 {
     QList <QDir> list = {m_externalDir, m_libraryDir};
     QString manufacturerName, modelName;
-    QJsonArray array;
+
+    if (device->logicalType() == LogicalType::Coordinator)
+        return;
 
     device->setSupported(false);
     device->options().clear();
@@ -165,56 +205,79 @@ void DeviceList::setupDevice(const Device &device)
 
     identityHandler(device, manufacturerName, modelName);
 
-    for (auto it = list.begin(); it != list.end() && array.isEmpty(); it++)
+    for (auto it = list.begin(); it != list.end() && !device->supported(); it++)
     {
         QList <QString> list = it->entryList(QDir::Files);
+        bool check = false;
 
-        for (int i = 0; i < list.count(); i++)
+        for (int i = 0; i < list.count() && !device->supported(); i++)
         {
             QFile file(QString("%1/%2").arg(it->path(), list.at(i)));
+            QJsonObject json;
+            QJsonArray array;
 
             if (!file.open(QFile::ReadOnly))
-                continue;
-
-            array = QJsonDocument::fromJson(file.readAll()).object().value(manufacturerName).toArray();
-            file.close();
-
-            if (!array.isEmpty())
-                break;
-        }
-    }
-
-    if (!array.isEmpty())
-    {
-        for (auto it = array.begin(); it != array.end(); it++)
-        {
-            QJsonObject json = it->toObject();
-            QJsonArray modelNames = json.value("modelNames").toArray();
-
-            if (modelNames.contains(modelName) || (manufacturerName == "TUYA" && modelNames.contains(device->modelName())))
             {
-                QJsonValue endpoinId = json.value("endpointId");
-                QList <QVariant> endpoints = endpoinId.type() == QJsonValue::Array ? endpoinId.toArray().toVariantList() : QList <QVariant> {endpoinId.toInt(1)};
-
-                if (json.contains("description"))
-                    device->setDescription(json.value("description").toString());
-
-                if (json.contains("options"))
+                if (!m_brokenFiles.contains(file.fileName()))
                 {
-                    QJsonObject options = json.value("options").toObject();
-
-                    if (endpoinId.type() == QJsonValue::Array)
-                        for (auto it = options.begin(); it != options.end(); it++)
-                            for (int i = 0; i < endpoints.count(); i++)
-                                device->options().insert(QString("%1_%2").arg(it.key(), endpoints.at(i).toString()), it.value().toVariant());
-                    else
-                        device->options().insert(options.toVariantMap());
+                    logWarning << "Cant't open library file" << file.fileName();
+                    m_brokenFiles.append(file.fileName());
                 }
 
-                if (json.contains("properties"))
+                continue;
+            }
+
+            json = QJsonDocument::fromJson(file.readAll()).object();
+            file.close();
+
+            if (json.isEmpty())
+            {
+                if (!m_brokenFiles.contains(file.fileName()))
                 {
+                    logWarning << "Library file" << file.fileName() << "JSON data is empty or not valid";
+                    m_brokenFiles.append(file.fileName());
+                }
+
+                continue;
+            }
+
+            array = json.value(manufacturerName).toArray();
+            m_brokenFiles.removeAll(file.fileName());
+
+            if (array.isEmpty())
+                continue;
+
+            for (auto it = array.begin(); it != array.end(); it++)
+            {
+                QJsonObject json = it->toObject();
+                QJsonArray modelNames = json.value("modelNames").toArray();
+                bool found = modelNames.contains(modelName);
+
+                if (found || (!check && manufacturerName == "TUYA" && modelNames.contains(device->modelName())))
+                {
+                    QJsonValue endpoinId = json.value("endpointId");
+                    QList <QVariant> endpoints = endpoinId.type() == QJsonValue::Array ? endpoinId.toArray().toVariantList() : QList <QVariant> {endpoinId.toInt(1)};
+
+                    if (found)
+                        check = true;
+
+                    if (json.contains("options"))
+                    {
+                        QJsonObject options = json.value("options").toObject();
+
+                        if (endpoinId.type() == QJsonValue::Array)
+                            for (auto it = options.begin(); it != options.end(); it++)
+                                for (int i = 0; i < endpoints.count(); i++)
+                                    device->options().insert(QString("%1_%2").arg(it.key(), endpoints.at(i).toString()), it.value().toVariant());
+                        else
+                            device->options().insert(options.toVariantMap());
+                    }
+
                     for (int i = 0; i < endpoints.count(); i++)
                         setupEndpoint(endpoint(device, static_cast <quint8> (endpoints.at(i).toInt())), json, endpoinId.type() == QJsonValue::Array);
+
+                    if (json.contains("description"))
+                        device->setDescription(json.value("description").toString());
 
                     device->setSupported(true);
                 }
@@ -229,7 +292,7 @@ void DeviceList::setupDevice(const Device &device)
 
         for (auto it = options.begin(); it != options.end(); it++)
         {
-            if (!m_offsets && it.key().contains("Offset"))
+            if (it.key().endsWith("Divider") && !it.value().toDouble())
                 continue;
 
             device->options().insert(it.key(), it.value().toVariant());
@@ -265,18 +328,48 @@ void DeviceList::setupEndpoint(const Endpoint &endpoint, const QJsonObject &json
         if (type)
         {
             Property property(reinterpret_cast <PropertyObject*> (QMetaType::create(type)));
-            quint32 timeout = static_cast <quint32> (device->options().value(QString(property->name()).append("Timeout")).toInt());
+            QVariant timeout = device->options().value(QString(property->name()).append("ResetTimeout"));
 
             property->setParent(endpoint.data());
             property->setMultiple(multiple);
+            property->setTimeout(static_cast <quint32> (timeout.toInt()));
 
-            if (timeout)
-            {
-                property->setTimeout(timeout);
+            if (timeout.toBool() || property->clusters().contains(CLUSTER_IAS_WD))
                 startTimer = true;
-            }
 
             endpoint->properties().append(property);
+            continue;
+        }
+
+        if (it->toString() == "customCommands")
+        {
+            QMap <QString, QVariant> options = device->options().value(multiple ? QString("customCommands_%2").arg(QString::number(endpoint->id())) : "customCommands").toMap();
+
+            for (auto it = options.begin(); it != options.end(); it++)
+            {
+                QMap <QString, QVariant> option = it.value().toMap();
+                Property property(new PropertiesCustom::Command(it.key(), static_cast <quint16> (option.value("clusterId").toInt())));
+                property->setParent(endpoint.data());
+                property->setMultiple(multiple);
+                endpoint->properties().append(property);
+            }
+
+            continue;
+        }
+
+        if (it->toString() == "customAttributes")
+        {
+            QMap <QString, QVariant> options = device->options().value(QString("customAttributes_%2").arg(QString::number(endpoint->id())), device->options().value("customAttributes")).toMap();
+
+            for (auto it = options.begin(); it != options.end(); it++)
+            {
+                QMap <QString, QVariant> option = it.value().toMap();
+                Property property(new PropertiesCustom::Attribute(it.key(), option.value("type").toString(), static_cast <quint16> (option.value("clusterId").toInt()), static_cast <quint16> (option.value("attributeId").toInt()), static_cast <quint8> (option.value("dataType").toInt()), option.value("divider", 1).toDouble()));
+                property->setParent(endpoint.data());
+                property->setMultiple(multiple);
+                endpoint->properties().append(property);
+            }
+
             continue;
         }
 
@@ -292,6 +385,26 @@ void DeviceList::setupEndpoint(const Endpoint &endpoint, const QJsonObject &json
             Action action(reinterpret_cast <ActionObject*> (QMetaType::create(type)));
             action->setParent(endpoint.data());
             endpoint->actions().append(action);
+            continue;
+        }
+
+        if (it->toString() == "customAttributes")
+        {
+            QMap <QString, QVariant> options = device->options().value(QString("customAttributes_%2").arg(QString::number(endpoint->id())), device->options().value("customAttributes")).toMap();
+
+            for (auto it = options.begin(); it != options.end(); it++)
+            {
+                QMap <QString, QVariant> option = it.value().toMap();
+                Action action;
+
+                if (!option.value("action").toBool())
+                    continue;
+
+                action = Action(new ActionsCustom::Attribute(it.key(), option.value("type").toString(), static_cast <quint16> (option.value("clusterId").toInt()), static_cast <quint16> (option.value("manufacturerCode").toInt()), static_cast <quint16> (option.value("attributeId").toInt()), static_cast <quint8> (option.value("dataType").toInt()), option.value("divider", 1).toDouble()));
+                action->setParent(endpoint.data());
+                endpoint->actions().append(action);
+            }
+
             continue;
         }
 
@@ -342,30 +455,24 @@ void DeviceList::setupEndpoint(const Endpoint &endpoint, const QJsonObject &json
 
     for (auto it = exposes.begin(); it != exposes.end(); it++)
     {
+        QString exposeName = it->toString(), itemName = exposeName.split('_').value(0), optionName = multiple ? QString("%1_%2").arg(itemName, QString::number(endpoint->id())) : itemName;
+        QMap <QString, QVariant> option = m_exposeOptions.value(itemName).toMap();
         Expose expose;
-        QString name = it->toString();
-        QList <QString> list = name.split('_');
-        QMap <QString, QVariant> option = device->options().value(multiple ? QString("%1_%2").arg(list.value(0), QString::number(endpoint->id())) : list.value(0)).toMap();
-        int type = QMetaType::type(list.value(0).append("Expose").toUtf8());
+        int type;
 
-        if (type)
+        if (!m_specialExposes.contains(itemName))
         {
-            expose = Expose(reinterpret_cast <ExposeObject*> (QMetaType::create(type)));
-
-            if (list.count() > 1)
-                expose->setName(name);
+            option.insert(device->options().value(optionName).toMap());
+            device->options().insert(optionName, option);
         }
-        else if (option.contains("enum"))
-            expose = Expose(new SelectObject(name));
-        else if (option.contains("min") && option.contains("max"))
-            expose = Expose(new NumberObject(name));
-        else if (list.at(0) != "thermostatProgram")
-            expose = Expose(new BooleanObject(name));
-        else
-            expose = Expose(new ExposeObject(name));
 
+        type = QMetaType::type(QString(m_specialExposes.contains(itemName) ? itemName : option.value("type").toString()).append("Expose").toUtf8());
+
+        expose = Expose(type ? reinterpret_cast <ExposeObject*> (QMetaType::create(type)) : new ExposeObject(itemName));
+        expose->setName(exposeName);
         expose->setParent(endpoint.data());
         expose->setMultiple(multiple);
+
         endpoint->exposes().append(expose);
     }
 
@@ -408,66 +515,108 @@ void DeviceList::recognizeDevice(const Device &device)
                         break;
 
                     it.value()->properties().append(Property(new Properties::BatteryPercentage));
-                    it.value()->exposes().append(Expose(new Sensor::Battery));
+                    it.value()->bindings().append(Binding(new Bindings::Battery));
+                    it.value()->reportings().append(Reporting(new Reportings::BatteryPercentage));
+                    it.value()->exposes().append(Expose(new SensorObject("battery")));
                     break;
 
                 case CLUSTER_TEMPERATURE_CONFIGURATION:
                     it.value()->properties().append(Property(new Properties::DeviceTemperature));
-                    it.value()->exposes().append(Expose(new Sensor::Temperature));
+                    it.value()->bindings().append(Binding(new Bindings::DeviceTemperature));
+                    it.value()->reportings().append(Reporting(new Reportings::DeviceTemperature));
+                    it.value()->exposes().append(Expose(new SensorObject("temperature")));
+                    device->options().insert(QString("temperature_%1").arg(it.key()), QMap <QString, QVariant> {{"diagnostic", true}});
                     break;
 
                 case CLUSTER_ON_OFF:
 
-                    if (!device->batteryPowered())
-                    {
-                        it.value()->properties().append(Property(new Properties::Status));
-                        it.value()->actions().append(Action(new Actions::Status));
-                        it.value()->exposes().append(it.value()->inClusters().contains(CLUSTER_LEVEL_CONTROL) || it.value()->inClusters().contains(CLUSTER_COLOR_CONTROL) ? Expose(new LightObject) : Expose(new SwitchObject));
+                    if (device->batteryPowered())
                         break;
-                    }
 
-                    it.value()->properties().append(Property(new Properties::StatusAction));
+                    it.value()->properties().append(Property(new Properties::Status));
+                    it.value()->actions().append(Action(new Actions::Status));
+                    it.value()->bindings().append(Binding(new Bindings::Status));
+                    it.value()->reportings().append(Reporting(new Reportings::Status));
+                    it.value()->exposes().append(it.value()->inClusters().contains(CLUSTER_LEVEL_CONTROL) || it.value()->inClusters().contains(CLUSTER_COLOR_CONTROL) ? Expose(new LightObject) : Expose(new SwitchObject));
                     break;
 
                 case CLUSTER_LEVEL_CONTROL:
 
                     if (!device->batteryPowered())
                     {
-                        QList <QVariant> options = device->options().value(QString("light-%1").arg(it.key())).toList();
+                        QList <QVariant> options = device->options().value(QString("light_%1").arg(it.key())).toList();
                         it.value()->properties().append(Property(new Properties::Level));
                         it.value()->actions().append(Action(new Actions::Level));
+                        it.value()->bindings().append(Binding(new Bindings::Level));
+                        it.value()->reportings().append(Reporting(new Reportings::Level));
                         options.append("level");
-                        device->options().insert(QString("light-%1").arg(it.key()), options);
+                        device->options().insert(QString("light_%1").arg(it.key()), options);
                         break;
                     }
 
                     it.value()->properties().append(Property(new Properties::LevelAction));
                     break;
 
+                case CLUSTER_ANALOG_INPUT:
+                    it.value()->properties().append(Property(new Properties::AnalogInput));
+                    it.value()->bindings().append(Binding(new Bindings::AnalogInput));
+                    it.value()->reportings().append(Reporting(new Reportings::AnalogInput));
+                    it.value()->exposes().append(Expose(new SensorObject("analogInput")));
+                    break;
+
+                case CLUSTER_ANALOG_OUTPUT:
+                    it.value()->properties().append(Property(new Properties::AnalogOutput));
+                    it.value()->actions().append(Action(new Actions::AnalogOutput));
+                    it.value()->bindings().append(Binding(new Bindings::AnalogOutput));
+                    it.value()->reportings().append(Reporting(new Reportings::AnalogOutput));
+                    it.value()->exposes().append(Expose(new NumberObject("analogOutput")));
+                    break;
+
                 case CLUSTER_WINDOW_COVERING:
-                    it.value()->properties().append(Property(new Properties::CoverStatus));
                     it.value()->properties().append(Property(new Properties::CoverPosition));
                     it.value()->actions().append(Action(new Actions::CoverStatus));
                     it.value()->actions().append(Action(new Actions::CoverPosition));
+                    it.value()->bindings().append(Binding(new Bindings::Cover));
+                    it.value()->reportings().append(Reporting(new Reportings::CoverPosition));
                     it.value()->exposes().append(Expose(new CoverObject));
+                    break;
+
+                case CLUSTER_THERMOSTAT:
+                    it.value()->properties().append(Property(new Properties::Thermostat));
+                    it.value()->actions().append(Action(new Actions::Thermostat));
+                    it.value()->bindings().append(Binding(new Bindings::Thermostat));
+                    it.value()->reportings().append(Reporting(new Reportings::Thermostat));
+                    it.value()->exposes().append(Expose(new ThermostatObject));
+                    device->options().insert(QString("targetTemperature_%1").arg(it.key()), QMap <QString, QVariant> {{"min", 7}, {"max", 30}, {"step", 0.1}, {"unit", "°C"}});
+                    device->options().insert(QString("systemMode_%1").arg(it.key()), QMap <QString, QVariant> {{"enum", QVariant(QList <QString> {"off", "heat"})}});
+                    break;
+
+                case CLUSTER_FAN_CONTROL:
+                    it.value()->properties().append(Property(new Properties::FanMode));
+                    it.value()->actions().append(Action(new Actions::FanMode));
+                    it.value()->bindings().append(Binding(new Bindings::Fan));
+                    it.value()->exposes().append(Expose(new SelectObject("fanMode")));
+                    device->options().insert(QString("fanMode_%1").arg(it.key()), QMap <QString, QVariant> {{"enum", QVariant(QList <QString> {"off", "low", "medium", "high"})}});
                     break;
 
                 case CLUSTER_COLOR_CONTROL:
 
                     if (!device->batteryPowered() && it.value()->colorCapabilities() && it.value()->colorCapabilities() <= 0x001F)
                     {
-                        QList <QVariant> options = device->options().value(QString("light-%1").arg(it.key())).toList();
+                        QList <QVariant> options = device->options().value(QString("light_%1").arg(it.key())).toList();
 
                         if (it.value()->colorCapabilities() & 0x0001)
                         {
                             it.value()->properties().append(Property(new Properties::ColorHS));
                             it.value()->actions().append(Action(new Actions::ColorHS));
+                            it.value()->reportings().append(Reporting(new Reportings::ColorHS));
                             options.append("color");
                         }
                         else if (it.value()->colorCapabilities() & 0x0008)
                         {
                             it.value()->properties().append(Property(new Properties::ColorXY));
                             it.value()->actions().append(Action(new Actions::ColorXY));
+                            it.value()->reportings().append(Reporting(new Reportings::ColorXY));
                             options.append("color");
                         }
 
@@ -475,10 +624,18 @@ void DeviceList::recognizeDevice(const Device &device)
                         {
                             it.value()->properties().append(Property(new Properties::ColorTemperature));
                             it.value()->actions().append(Action(new Actions::ColorTemperature));
+                            it.value()->reportings().append(Reporting(new Reportings::ColorTemperature));
                             options.append("colorTemperature");
                         }
 
-                        device->options().insert(QString("light-%1").arg(it.key()), options);
+                        if (options.contains("color") && options.contains("colorTemperature"))
+                        {
+                            it.value()->properties().append(Property(new Properties::ColorMode));
+                            options.append("colorMode");
+                        }
+
+                        it.value()->bindings().append(Binding(new Bindings::Color));
+                        device->options().insert(QString("light_%1").arg(it.key()), options);
                         break;
                     }
 
@@ -487,36 +644,78 @@ void DeviceList::recognizeDevice(const Device &device)
 
                 case CLUSTER_ILLUMINANCE_MEASUREMENT:
                     it.value()->properties().append(Property(new Properties::Illuminance));
-                    it.value()->exposes().append(Expose(new Sensor::Illuminance));
+                    it.value()->bindings().append(Binding(new Bindings::Illuminance));
+                    it.value()->reportings().append(Reporting(new Reportings::Illuminance));
+                    it.value()->exposes().append(Expose(new SensorObject("illuminance")));
                     break;
 
                 case CLUSTER_TEMPERATURE_MEASUREMENT:
                     it.value()->properties().append(Property(new Properties::Temperature));
-                    it.value()->exposes().append(Expose(new Sensor::Temperature));
+                    it.value()->bindings().append(Binding(new Bindings::Temperature));
+                    it.value()->reportings().append(Reporting(new Reportings::Temperature));
+                    it.value()->exposes().append(Expose(new SensorObject("temperature")));
                     break;
 
-                case CLUSTER_RELATIVE_HUMIDITY:
+                case CLUSTER_PRESSURE_MEASUREMENT:
+                    it.value()->properties().append(Property(new Properties::Pressure));
+                    it.value()->bindings().append(Binding(new Bindings::Pressure));
+                    it.value()->reportings().append(Reporting(new Reportings::Pressure));
+                    it.value()->exposes().append(Expose(new SensorObject("pressure")));
+                    break;
+
+                case CLUSTER_HUMIDITY_MEASUREMENT:
                     it.value()->properties().append(Property(new Properties::Humidity));
-                    it.value()->exposes().append(Expose(new Sensor::Humidity));
+                    it.value()->bindings().append(Binding(new Bindings::Humidity));
+                    it.value()->reportings().append(Reporting(new Reportings::Humidity));
+                    it.value()->exposes().append(Expose(new SensorObject("humidity")));
                     break;
 
                 case CLUSTER_OCCUPANCY_SENSING:
                     it.value()->properties().append(Property(new Properties::Occupancy));
-                    it.value()->exposes().append(Expose(new Binary::Occupancy));
+                    it.value()->bindings().append(Binding(new Bindings::Occupancy));
+                    it.value()->reportings().append(Reporting(new Reportings::Occupancy));
+                    it.value()->exposes().append(Expose(new BinaryObject("occupancy")));
+                    break;
+
+                case CLUSTER_MOISTURE_MEASUREMENT:
+                    it.value()->properties().append(Property(new Properties::Moisture));
+                    it.value()->bindings().append(Binding(new Bindings::Moisture));
+                    it.value()->reportings().append(Reporting(new Reportings::Moisture));
+                    it.value()->exposes().append(Expose(new SensorObject("moisture")));
+                    break;
+
+                case CLUSTER_CO2_CONCENTRATION:
+                    it.value()->properties().append(Property(new Properties::CO2));
+                    it.value()->bindings().append(Binding(new Bindings::CO2));
+                    it.value()->reportings().append(Reporting(new Reportings::CO2));
+                    it.value()->exposes().append(Expose(new SensorObject("co2")));
+                    break;
+
+                case CLUSTER_PM25_CONCENTRATION:
+                    it.value()->properties().append(Property(new Properties::PM25));
+                    it.value()->bindings().append(Binding(new Bindings::PM25));
+                    it.value()->reportings().append(Reporting(new Reportings::PM25));
+                    it.value()->exposes().append(Expose(new SensorObject("pm25")));
                     break;
 
                 case CLUSTER_SMART_ENERGY_METERING:
                     it.value()->properties().append(Property(new Properties::Energy));
-                    it.value()->exposes().append(Expose(new Sensor::Energy));
+                    it.value()->bindings().append(Binding(new Bindings::Energy));
+                    it.value()->reportings().append(Reporting(new Reportings::Energy));
+                    it.value()->exposes().append(Expose(new SensorObject("energy")));
                     break;
 
                 case CLUSTER_ELECTRICAL_MEASUREMENT:
                     it.value()->properties().append(Property(new Properties::Voltage));
                     it.value()->properties().append(Property(new Properties::Current));
                     it.value()->properties().append(Property(new Properties::Power));
-                    it.value()->exposes().append(Expose(new Sensor::Voltage));
-                    it.value()->exposes().append(Expose(new Sensor::Current));
-                    it.value()->exposes().append(Expose(new Sensor::Power));
+                    it.value()->bindings().append(Binding(new Bindings::Power));
+                    it.value()->reportings().append(Reporting(new Reportings::Voltage));
+                    it.value()->reportings().append(Reporting(new Reportings::Current));
+                    it.value()->reportings().append(Reporting(new Reportings::Power));
+                    it.value()->exposes().append(Expose(new SensorObject("voltage")));
+                    it.value()->exposes().append(Expose(new SensorObject("current")));
+                    it.value()->exposes().append(Expose(new SensorObject("power")));
                     break;
 
                 case CLUSTER_IAS_ZONE:
@@ -525,27 +724,27 @@ void DeviceList::recognizeDevice(const Device &device)
                     {
                         case 0x000D:
                             it.value()->properties().append(Property(new PropertiesIAS::Occupancy));
-                            it.value()->exposes().append(Expose(new Binary::Occupancy));
+                            it.value()->exposes().append(Expose(new BinaryObject("occupancy")));
                             break;
 
                         case 0x0015:
                             it.value()->properties().append(Property(new PropertiesIAS::Contact));
-                            it.value()->exposes().append(Expose(new Binary::Contact));
+                            it.value()->exposes().append(Expose(new BinaryObject("contact")));
                             break;
 
                         case 0x002A:
                             it.value()->properties().append(Property(new PropertiesIAS::WaterLeak));
-                            it.value()->exposes().append(Expose(new Binary::WaterLeak));
+                            it.value()->exposes().append(Expose(new BinaryObject("waterLeak")));
                             break;
 
                         default:
                             it.value()->properties().append(Property(new PropertiesIAS::ZoneStatus));
-                            it.value()->exposes().append(Expose(new BinaryObject));
+                            it.value()->exposes().append(Expose(new BinaryObject("alarm")));
                             break;
                     }
 
-                    it.value()->exposes().append(Expose(new Binary::BatteryLow));
-                    it.value()->exposes().append(Expose(new Binary::Tamper));
+                    it.value()->exposes().append(Expose(new BinaryObject("batteryLow")));
+                    it.value()->exposes().append(Expose(new BinaryObject("tamper")));
                     break;
             }
         }
@@ -599,9 +798,17 @@ void DeviceList::recognizeDevice(const Device &device)
             for (int i = 0; i < it.value()->exposes().count(); i++)
             {
                 const Expose &expose = it.value()->exposes().at(i);
+                QString name = QString("%1_%2").arg(expose->name(), QString::number(it.key()));
 
                 expose->setParent(it.value().data());
                 recognizeMultipleExpose(device, it.value(), expose);
+
+                if (!m_specialExposes.contains(expose->name()))
+                {
+                    QMap <QString, QVariant> option = device->options().value(name).toMap();
+                    option.insert(m_exposeOptions.value(expose->name()).toMap());
+                    device->options().insert(name, option);
+                }
 
                 if (list.contains(expose->name()))
                     continue;
@@ -654,22 +861,12 @@ void DeviceList::removeDevice(const Device &device)
 {
     if (device->name() != device->ieeeAddress().toHex(':'))
     {
-        insert(device->ieeeAddress(), Device(new DeviceObject(device->ieeeAddress(), device->networkAddress(), device->name(), true)));
+        device->setInterviewFinished(false);
+        device->setRemoved(true);
         return;
     }
 
     remove(device->ieeeAddress());
-}
-
-void DeviceList::storeDatabase(void)
-{
-    m_sync = true;
-    m_databaseTimer->start(STORE_DATABASE_DELAY);
-}
-
-void DeviceList::storeProperties(void)
-{
-    m_propertiesTimer->start(STORE_PROPERTIES_DELAY);
 }
 
 void DeviceList::unserializeDevices(const QJsonArray &devices)
@@ -684,16 +881,22 @@ void DeviceList::unserializeDevices(const QJsonArray &devices)
         {
             Device device(new DeviceObject(QByteArray::fromHex(json.value("ieeeAddress").toString().toUtf8()), static_cast <quint16> (json.value("networkAddress").toInt()), json.value("name").toString(), json.value("removed").toBool()));
 
+            device->setNote(json.value("note").toString());
+            device->setActive(json.value("active").toBool());
+            device->setDiscovery(json.value("discovery").toBool());
+            device->setCloud(json.value("cloud").toBool());
+
             if (!device->removed())
             {
                 QJsonArray endpoints = json.value("endpoints").toArray(), neighbors = json.value("neighbors").toArray();
 
-                device->setLogicalType(static_cast <LogicalType> (json.value("logicalType").toInt()));
-                device->setManufacturerCode(static_cast <quint16> (json.value("manufacturerCode").toInt()));
                 device->setVersion(static_cast <quint8> (json.value("version").toInt()));
-                device->setPowerSource(static_cast <quint8> (json.value("powerSource").toInt()));
                 device->setManufacturerName(json.value("manufacturerName").toString());
                 device->setModelName(json.value("modelName").toString());
+                device->setInterviewFinished(json.value("interviewFinished").toBool());
+                device->setLogicalType(static_cast <LogicalType> (json.value("logicalType").toInt()));
+                device->setManufacturerCode(static_cast <quint16> (json.value("manufacturerCode").toInt()));
+                device->setPowerSource(static_cast <quint8> (json.value("powerSource").toInt()));
                 device->setFirmware(json.value("firmware").toString());
                 device->setLastSeen(json.value("lastSeen").toInt());
                 device->setLinkQuality(json.value("linkQuality").toInt());
@@ -733,11 +936,8 @@ void DeviceList::unserializeDevices(const QJsonArray &devices)
                     device->neighbors().insert(static_cast <quint16> (json.value("networkAddress").toInt()), static_cast <quint8> (json.value("linkQuality").toInt()));
                 }
 
-                if (json.value("interviewFinished").toBool())
-                {
-                    device->setInterviewFinished();
+                if (device->interviewFinished())
                     setupDevice(device);
-                }
 
                 count++;
             }
@@ -757,7 +957,7 @@ void DeviceList::unserializeProperties(const QJsonObject &properties)
     for (auto it = begin(); it != end(); it++)
     {
         const Device &device = it.value();
-        QJsonObject json = properties.value(it.value()->ieeeAddress().toHex(':')).toObject();
+        QJsonObject json = properties.value(device->ieeeAddress().toHex(':')).toObject();
 
         if (device->removed() || json.isEmpty())
             continue;
@@ -791,15 +991,22 @@ QJsonArray DeviceList::serializeDevices(void)
         const Device &device = it.value();
         QJsonObject json = {{"ieeeAddress", QString(device->ieeeAddress().toHex(':'))}, {"networkAddress", device->networkAddress()}};
 
+        if (device->logicalType() != LogicalType::Coordinator)
+        {
+            if (!device->note().isEmpty())
+                json.insert("note", device->note());
+
+            json.insert("active", device->active());
+            json.insert("discovery", device->discovery());
+            json.insert("cloud", device->cloud());
+        }
+
         if (!device->removed())
         {
             json.insert("logicalType", static_cast <quint8> (device->logicalType()));
 
             if (device->name() != device->ieeeAddress().toHex(':'))
                 json.insert("name", device->name());
-
-            if (device->version())
-                json.insert("version", device->version());
 
             if (!device->manufacturerName().isEmpty())
                 json.insert("manufacturerName", device->manufacturerName());
@@ -816,6 +1023,9 @@ QJsonArray DeviceList::serializeDevices(void)
                 json.insert("interviewFinished", device->interviewFinished());
                 json.insert("manufacturerCode", device->manufacturerCode());
                 json.insert("powerSource", device->powerSource());
+
+                if (device->version())
+                    json.insert("version", device->version());
 
                 if (device->lastSeen())
                     json.insert("lastSeen", device->lastSeen());
@@ -904,25 +1114,29 @@ QJsonObject DeviceList::serializeProperties(void)
     for (auto it = begin(); it != end(); it++)
     {
         const Device &device = it.value();
-        QJsonObject properties;
 
-        for (auto it = device->endpoints().begin(); it != device->endpoints().end(); it++)
+        if (!device->removed())
         {
-            for (int i = 0; i < it.value()->properties().count(); i++)
+            QJsonObject properties;
+
+            for (auto it = device->endpoints().begin(); it != device->endpoints().end(); it++)
             {
-                const Property &property = it.value()->properties().at(i);
+                for (int i = 0; i < it.value()->properties().count(); i++)
+                {
+                    const Property &property = it.value()->properties().at(i);
 
-                if (!property->value().isValid())
-                    continue;
+                    if (!property->value().isValid())
+                        continue;
 
-                properties.insert(property->multiple() ? QString("%1_%2").arg(property->name()).arg(it.value()->id()) : property->name(), QJsonValue::fromVariant(property->value()));
+                    properties.insert(property->multiple() ? QString("%1_%2").arg(property->name()).arg(it.value()->id()) : property->name(), QJsonValue::fromVariant(property->value()));
+                }
             }
+
+            if (properties.isEmpty())
+                continue;
+
+            json.insert(it.value()->ieeeAddress().toHex(':'), properties);
         }
-
-        if (properties.isEmpty())
-            continue;
-
-        json.insert(it.value()->ieeeAddress().toHex(':'), properties);
     }
 
     return json;
@@ -1002,7 +1216,7 @@ void DeviceList::endpointTimeout(void)
             if (property->value() == value)
                 continue;
 
-            emit endpointUpdated(endpoint->device(), endpoint->id());
+            emit endpointUpdated(endpoint->device().data(), endpoint->id());
         }
     }
 

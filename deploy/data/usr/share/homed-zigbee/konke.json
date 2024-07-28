@@ -18,7 +18,7 @@
       "modelNames":     ["3AFE07010402100D", "3AFE08010402100D", "3AFE14010402000D", "3AFE27010402000D", "3AFE28010402000D"],
       "properties":     ["batteryPercentage", "iasOccupancy"],
       "exposes":        ["battery", "occupancy", "batteryLow", "tamper"],
-      "options":        {"occupancyTimeout": 120}
+      "options":        {"occupancyResetTimeout": 120}
     },
     {
       "description":    "Konke Water Leak Sensor LH07321 or KK-WA-J01W",
@@ -43,16 +43,16 @@
     {
       "description":    "Konke Wireless Button 2AJZ4KPKEY",
       "modelNames":     ["3AFE170100510001", "3AFE280100510001"],
-      "properties":     ["batteryPercentage", "konkeButtonAction"],
+      "properties":     ["batteryPercentage", "customAttributes"],
       "exposes":        ["battery", "action"],
-      "options":        {"action": ["singleClick", "doubleClick", "hold"]}
+      "options":        {"customAttributes": {"action": {"type": "enum", "clusterId": 6, "attributeId": 0, "dataType": 32}}, "action": {"enum": {"128": "singleClick", "129": "doubleClick", "130": "hold"}}}
     },
     {
       "description":    "Konke Wireless Scene Switch KK-TQ-J01W",
       "modelNames":     ["3AFE241000040002"],
       "properties":     ["batteryPercentage", "scene"],
       "exposes":        ["battery", "scene"],
-      "options":        {"scene": {"241": "hexagon", "242": "square", "243": "triangle", "244": "circle"}},
+      "options":        {"scene": {"enum": {"241": "hexagon", "242": "square", "243": "triangle", "244": "circle"}}},
       "endpointId":     1
     },
     {

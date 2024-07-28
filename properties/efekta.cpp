@@ -2,9 +2,9 @@
 #include <QtMath>
 #include "efekta.h"
 
-void PropertiesEfekta::ReportingDelay::parseAttribte(quint16 attributeId, const QByteArray &data)
+void PropertiesEfekta::ReportingDelay::parseAttribte(quint16, quint16 attributeId, const QByteArray &data)
 {
-    quint16 value;
+    quint16 value = 0;
 
     if (attributeId != 0x0201 || static_cast <size_t> (data.length()) > sizeof(value))
         return;
@@ -13,7 +13,7 @@ void PropertiesEfekta::ReportingDelay::parseAttribte(quint16 attributeId, const 
     m_value = qFromLittleEndian(value);
 }
 
-void PropertiesEfekta::TemperatureSettings::parseAttribte(quint16 attributeId, const QByteArray &data)
+void PropertiesEfekta::TemperatureSettings::parseAttribte(quint16, quint16 attributeId, const QByteArray &data)
 {
     QMap <QString, QVariant> map = m_value.toMap();
 
@@ -23,7 +23,7 @@ void PropertiesEfekta::TemperatureSettings::parseAttribte(quint16 attributeId, c
         case 0x0221:
         case 0x0222:
         {
-            qint16 value;
+            qint16 value = 0;
 
             if (static_cast <size_t> (data.length()) > sizeof(value))
                 return;
@@ -52,7 +52,7 @@ void PropertiesEfekta::TemperatureSettings::parseAttribte(quint16 attributeId, c
     m_value = map.isEmpty() ? QVariant() : map;
 }
 
-void PropertiesEfekta::HumiditySettings::parseAttribte(quint16 attributeId, const QByteArray &data)
+void PropertiesEfekta::HumiditySettings::parseAttribte(quint16, quint16 attributeId, const QByteArray &data)
 {
     QMap <QString, QVariant> map = m_value.toMap();
 
@@ -60,7 +60,7 @@ void PropertiesEfekta::HumiditySettings::parseAttribte(quint16 attributeId, cons
     {
         case 0x0210:
         {
-            qint16 value;
+            qint16 value = 0;
 
             if (static_cast <size_t> (data.length()) > sizeof(value))
                 return;
@@ -88,30 +88,18 @@ void PropertiesEfekta::HumiditySettings::parseAttribte(quint16 attributeId, cons
     m_value = map.isEmpty() ? QVariant() : map;
 }
 
-void PropertiesEfekta::CO2Sensor::parseAttribte(quint16 attributeId, const QByteArray &data)
+void PropertiesEfekta::CO2Settings::parseAttribte(quint16, quint16 attributeId, const QByteArray &data)
 {
     QMap <QString, QVariant> map = m_value.toMap();
 
     switch (attributeId)
     {
-        case 0x0000:
-        {
-            float value;
-
-            if (static_cast <size_t> (data.length()) > sizeof(value))
-                return;
-
-            memcpy(&value, data.constData(), data.length());
-            map.insert("co2", round(qFromLittleEndian(value) * 1000000));
-            break;
-        }
-
         case 0x0205:
         case 0x0207:
         case 0x0221:
         case 0x0222:
         {
-            uint16_t value;
+            uint16_t value = 0;
 
             if (static_cast <size_t> (data.length()) > sizeof(value))
                 return;
@@ -147,6 +135,7 @@ void PropertiesEfekta::CO2Sensor::parseAttribte(quint16 attributeId, const QByte
                 case 0x0225: map.insert("co2RelayInvert", value); break;
                 case 0x0244: map.insert("pressureLongChart", value); break;
                 case 0x0401: map.insert("nightBacklight", value); break;
+                case 0x0402: map.insert("co2AutoCalibration", value); break;
             }
 
             break;
@@ -156,7 +145,59 @@ void PropertiesEfekta::CO2Sensor::parseAttribte(quint16 attributeId, const QByte
     m_value = map.isEmpty() ? QVariant() : map;
 }
 
-void PropertiesEfekta::VOCSensor::parseAttribte(quint16 attributeId, const QByteArray &data)
+void PropertiesEfekta::PMSensor::parseAttribte(quint16, quint16 attributeId, const QByteArray &data)
+{
+    QMap <QString, QVariant> map = m_value.toMap();
+
+    switch (attributeId)
+    {
+        case 0x00C8:
+        case 0x00C9:
+        {
+            float value = 0;
+
+            if (static_cast <size_t> (data.length()) > sizeof(value))
+                return;
+
+            memcpy(&value, data.constData(), data.length());
+            map.insert(attributeId == 0x00C8 ? "pm1" : "pm10", qFromLittleEndian(value));
+            break;
+        }
+
+        case 0x0201:
+        case 0x0221:
+        case 0x0222:
+        {
+            quint16 value = 0;
+
+            if (static_cast <size_t> (data.length()) > sizeof(value))
+                return;
+
+            memcpy(&value, data.constData(), data.length());
+            value = qFromLittleEndian(value);
+
+            switch (attributeId)
+            {
+                case 0x0201: map.insert("readInterval", value); break;
+                case 0x0221: map.insert("pm25High", value); break;
+                case 0x0222: map.insert("pm25Low", value); break;
+            }
+
+            break;
+        }
+
+        case 0x0220:
+        case 0x0225:
+        {
+            map.insert(attributeId == 0x0220 ? "pm25Relay" : "pm25RelayInvert", data.at(0) ? true : false);
+            break;
+        }
+    }
+
+    m_value = map.isEmpty() ? QVariant() : map;
+}
+
+void PropertiesEfekta::VOCSensor::parseAttribte(quint16, quint16 attributeId, const QByteArray &data)
 {
     QMap <QString, QVariant> map = m_value.toMap();
 
@@ -164,20 +205,20 @@ void PropertiesEfekta::VOCSensor::parseAttribte(quint16 attributeId, const QByte
     {
         case 0x0055:
         {
-            float value;
+            float value = 0;
 
             if (static_cast <size_t> (data.length()) > sizeof(value))
                 return;
 
             memcpy(&value, data.constData(), data.length());
-            map.insert(endpointId() == 0x01 ? "voc" : "eco2", round(qFromLittleEndian(value)));
+            map.insert(endpointId() == 0x01 ? "voc" : "eco2", qFromLittleEndian(value));
             break;
         }
 
         case 0x0221:
         case 0x0222:
         {
-            quint16 value;
+            quint16 value = 0;
 
             if (static_cast <size_t> (data.length()) > sizeof(value))
                 return;
@@ -190,8 +231,8 @@ void PropertiesEfekta::VOCSensor::parseAttribte(quint16 attributeId, const QByte
         case 0x0220:
         case 0x0225:
         {
-             map.insert(attributeId == 0x0220 ? "vocRelay" : "vocRelayInvert", data.at(0) ? true : false);
-             break;
+            map.insert(attributeId == 0x0220 ? "vocRelay" : "vocRelayInvert", data.at(0) ? true : false);
+            break;
         }
     }
 

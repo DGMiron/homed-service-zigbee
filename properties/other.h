@@ -4,55 +4,99 @@
 #include "property.h"
 #include "zcl.h"
 
-namespace PropertiesOther
+namespace PropertiesByun
 {
-    class KonkeButtonAction : public PropertyObject
+    class Sensor : public PropertyObject
     {
 
     public:
 
-        KonkeButtonAction(void) : PropertyObject("action", CLUSTER_ON_OFF) {}
-        void parseAttribte(quint16 attributeId, const QByteArray &data) override;
+        Sensor(const QString &name, QList <quint16> clusters) : PropertyObject(name, clusters) {}
+        void parseCommand(quint16 clusterId, quint8 commandId, const QByteArray &payload) override;
+        void parseAttribte(quint16 clusterId, quint16 attributeId, const QByteArray &data) override;
 
     };
 
-    class SonoffButtonAction : public PropertyObject
+    class GasSensor : public Sensor
     {
 
     public:
 
-        SonoffButtonAction(void) : PropertyObject("action", CLUSTER_ON_OFF) {}
-        void parseCommand(quint8 commandId, const QByteArray &payload) override;
+        GasSensor(void) : Sensor("gas", {CLUSTER_BYUN, CLUSTER_IAS_ZONE}) {}
 
     };
 
-    class ModkamButtonAction : public PropertyObject
+    class SmokeSensor : public Sensor
     {
 
     public:
 
-        ModkamButtonAction(void) : PropertyObject("action", CLUSTER_MULTISTATE_INPUT) {}
-        void parseAttribte(quint16 attributeId, const QByteArray &data) override;
+        SmokeSensor(void) : Sensor("smoke", {CLUSTER_PH_MEASUREMENT, CLUSTER_IAS_ZONE}) {}
+
+    };
+}
+
+namespace PropertiesIKEA
+{
+    class Occupancy : public PropertyObject
+    {
+
+    public:
+
+        Occupancy(void) : PropertyObject("occupancy", CLUSTER_ON_OFF) {}
+        void parseCommand(quint16 clusterId, quint8 commandId, const QByteArray &payload) override;
+        void resetValue(void) override;
 
     };
 
-    class LifeControlAirQuality : public PropertyObject
+    class StatusAction : public PropertyObject
     {
-
     public:
 
-        LifeControlAirQuality(void) : PropertyObject("airQuality", CLUSTER_TEMPERATURE_MEASUREMENT) {}
-        void parseAttribte(quint16 attributeId, const QByteArray &data) override;
+        StatusAction(void) : PropertyObject("action", CLUSTER_ON_OFF) {}
+        void parseCommand(quint16 clusterId, quint8 commandId, const QByteArray &payload) override;
 
     };
 
-    class PerenioSmartPlug : public PropertyObject
+    class ArrowAction : public PropertyObject
     {
 
     public:
 
-        PerenioSmartPlug(void) : PropertyObject("smartPlug", CLUSTER_PERENIO) {}
-        void parseAttribte(quint16 attributeId, const QByteArray &data) override;
+        ArrowAction(void) : PropertyObject("action", CLUSTER_SCENES) {}
+        void parseCommand(quint16 clusterId, quint8 commandId, const QByteArray &payload) override;
+
+    };
+}
+
+namespace PropertiesCustom
+{
+    class Command : public PropertyObject
+    {
+
+    public:
+
+        Command(const QString &name, quint16 clusterId) : PropertyObject(name, clusterId) {}
+        void parseCommand(quint16 clusterId, quint8 commandId, const QByteArray &payload) override;
+
+    };
+
+    class Attribute : public PropertyObject
+    {
+
+    public:
+
+        Attribute(const QString &name, const QString &type, quint16 clusterId, quint16 attributeId, quint8 dataType, double divider) :
+            PropertyObject(name, clusterId), m_type(type), m_attributeId(attributeId), m_dataType(dataType), m_divider(divider) {}
+
+        void parseAttribte(quint16 clusterId, quint16 attributeId, const QByteArray &data) override;
+
+    private:
+
+        QString m_type;
+        quint16 m_attributeId;
+        quint8 m_dataType;
+        double m_divider;
 
     };
 }

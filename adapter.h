@@ -2,13 +2,16 @@
 #define ADAPTER_H
 
 #define RECEIVE_TIMEOUT                 20
-#define PERMIT_JOIN_TIMEOUT             60000
 
-#define RESET_TIMEOUT                   10000
+#define PERMIT_JOIN_TIMEOUT             60000
+#define PERMIT_JOIN_BROARCAST_ADDRESS   0xFFFC
+
+#define RESET_TIMEOUT                   15000
 #define RESET_DELAY                     100
 
 #define DEFAULT_GROUP                   0x0000
 #define IKEA_GROUP                      0x0385
+#define GREEN_POWER_GROUP               0x0B84
 
 #define PROFILE_IPM                     0x0101 // Industrial Plant Monitoring
 #define PROFILE_HA                      0x0104 // Home Automation
@@ -123,14 +126,13 @@ struct bindRequestStruct
 class EndpointDataObject;
 typedef QSharedPointer <EndpointDataObject> EndpointData;
 
-class EndpointDataObject : public QObject
+class EndpointDataObject
 {
-    Q_OBJECT
 
 public:
 
     EndpointDataObject(quint16 profileId = 0, quint16 deviceId = 0) :
-        QObject(nullptr), m_profileId(profileId), m_deviceId(deviceId) {}
+        m_profileId(profileId), m_deviceId(deviceId) {}
 
     inline quint16 profileId(void) { return m_profileId; }
     inline void setProfileId(quint16 value) { m_profileId = value; }
@@ -171,11 +173,15 @@ public:
     inline QString firmware(void) { return m_firmware; }
 
     inline QByteArray ieeeAddress(void) { return m_ieeeAddress; }
-    inline void setRequestAddress(const QByteArray &value) { m_requestAddress = value; }
+    inline quint8 replyStatus(void) { return m_replyStatus; }
+
+    inline void setRequestParameters(const QByteArray &value, bool extendedTimeout = true) { m_requestAddress = value; m_extendedTimeout = extendedTimeout; }
 
     void init(void);
-    void setPermitJoin(bool enabled);
     bool waitForSignal(const QObject *sender, const char *signal, int tiomeout);
+
+    void setPermitJoin(bool enabled);
+    void togglePermitJoin(void);
 
     virtual bool zdoRequest(quint8 id, quint16 networkAddress, quint16 clusterId, const QByteArray &data = QByteArray());
     virtual bool bindRequest(quint8 id, quint16 networkAddress, quint8 endpointId, quint16 clusterId, const QByteArray &address, quint8 dstEndpointId, bool unbind = false);
@@ -198,13 +204,17 @@ protected:
 
     QString m_bootPin, m_resetPin, m_reset;
     quint16 m_panId;
-    quint8 m_channel;
+    quint8 m_channel, m_power;
     bool m_write, m_portDebug, m_adapterDebug;
 
     QString m_manufacturerName, m_modelName, m_firmware;
-    QByteArray m_ieeeAddress, m_requestAddress;
+    QByteArray m_networkKey, m_defaultKey, m_ieeeAddress;
 
+    quint8 m_replyStatus;
     bool m_permitJoin;
+
+    QByteArray m_requestAddress;
+    bool m_extendedTimeout;
 
     QMap <quint8, EndpointData> m_endpoints;
     QList <quint16> m_multicast;
@@ -219,11 +229,13 @@ private:
     virtual void parseData(QByteArray &buffer) = 0;
     virtual bool permitJoin(bool enabled) = 0;
 
-private slots:
+protected slots:
 
     virtual void handleQueue(void) = 0;
+    virtual void serialError(QSerialPort::SerialPortError error);
 
-    void serialError(QSerialPort::SerialPortError error);
+private slots:
+
     void socketError(QTcpSocket::SocketError error);
     void socketConnected(void);
 

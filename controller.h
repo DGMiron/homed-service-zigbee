@@ -1,8 +1,9 @@
 #ifndef CONTROLLER_H
 #define CONTROLLER_H
 
-#define SERVICE_VERSION                 "3.4.3"
-#define UPDATE_AVAILABILITY_INTERVAL    10000
+#define SERVICE_VERSION                 "3.7.8"
+#define UPDATE_AVAILABILITY_INTERVAL    5000
+#define UPDATE_PROPERTIES_DELAY         1000
 
 #include "homed.h"
 #include "zigbee.h"
@@ -17,11 +18,13 @@ public:
 
     enum class Command
     {
+        restartService,
         setPermitJoin,
-        removeDevice,
-        setDeviceName,
+        togglePermitJoin,
         updateDevice,
-        updateReporting,
+        removeDevice,
+        setupDevice,
+        setupReporting,
         bindDevice,
         unbindDevice,
         addGroup,
@@ -39,16 +42,17 @@ public:
 
 private:
 
-    QTimer *m_timer;
+    QTimer *m_avaliabilityTimer, *m_propertiesTimer;
     ZigBee *m_zigbee;
 
     QMetaEnum m_commands;
+    QString m_haPrefix, m_haStatus;
+    bool m_haEnabled, m_networkStarted;
 
-    bool m_homeassistant;
-    QString m_homeassistantPrefix, m_homeassistantStatus;
+    QMap <QByteArray, qint64> m_lastSeen;
 
-    void publishExposes(const Device &device, bool remove = false);
-    void publishProperties(void);
+    void publishExposes(DeviceObject *device, bool remove = false);
+    void serviceOnline(void);
 
 public slots:
 
@@ -60,9 +64,11 @@ private slots:
     void mqttReceived(const QByteArray &message, const QMqttTopicName &topic) override;
 
     void updateAvailability(void);
+    void updateProperties(void);
 
-    void deviceEvent(const Device &device, ZigBee::Event event);
-    void endpointUpdated(const Device &device, quint8 endpointId);
+    void networkStarted(void);
+    void deviceEvent(DeviceObject *device, ZigBee::Event event, const QJsonObject &json);
+    void endpointUpdated(DeviceObject *device, quint8 endpointId);
     void statusUpdated(const QJsonObject &json);
 
 };

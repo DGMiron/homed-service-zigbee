@@ -2,8 +2,8 @@
   "HOMEd":
   [
     {
-      "description":    "ESP32C6 Light Example",
-      "modelNames":     ["ESP Light"],
+      "description":    "ESP32 Based RGB Light",
+      "modelNames":     ["RGB Light"],
       "properties":     ["status", "level", "colorXY"],
       "actions":        ["status", "level", "colorXY"],
       "bindings":       ["status", "level", "color"],
@@ -12,11 +12,31 @@
       "options":        {"light": ["level", "color"]}
     },
     {
+      "description":    "ESP32 Based Thermostat",
+      "modelNames":     ["Thermostat"],
+      "properties":     ["status", "powerOnStatus", "thermostat"],
+      "actions":        ["status", "powerOnStatus", "thermostat"],
+      "bindings":       ["status", "thermostat"],
+      "reportings":     ["status", "thermostat"],
+      "exposes":        ["switch", "powerOnStatus", "thermostat"],
+      "options":        {"systemMode": {"enum": ["off", "heat"]}, "targetTemperature": {"min": -5, "max": 40, "step": 0.1}}
+    },
+    {
+      "description":    "IKEA Vindriktning Based Air Quality Sensor",
+      "modelNames":     ["Vindriktning"],
+      "properties":     ["status", "level", "fanMode", "co2", "pm25"],
+      "actions":        ["status", "level", "fanMode"],
+      "bindings":       ["status", "level", "fan", "co2", "pm25"],
+      "reportings":     ["status", "level", "co2", "pm25"],
+      "exposes":        ["light", "fanMode", "co2", "pm25"],
+      "options":        {"light": ["level"]}
+    },
+    {
       "description":    "PTVO Firmware Based CO2 Sensor",
       "modelNames":     ["CO2 Sensor"],
       "properties":     ["ptvoTemperature", "ptvoCO2", "ptvoSwitchAction"],
       "exposes":        ["temperature", "co2", "action"],
-      "options":        {"action": ["on", "off"]}
+      "options":        {"action": {"enum": ["on", "off"]}}
     },
     {
       "description":    "PTVO Firmware Based Smart Plug",
@@ -40,7 +60,7 @@
       "properties":     ["ptvoChangePattern", "ptvoPattern"],
       "actions":        ["ptvoChangePattern", "ptvoPattern"],
       "exposes":        ["pattern"],
-      "options":        {"pattern": {"min": 0, "max": 62, "control": true, "icon": "mdi:swap-horizontal-bold"}},
+      "options":        {"pattern": {"min": 0, "max": 62}},
       "endpointId":     2
     },
     {
@@ -54,7 +74,7 @@
       "modelNames":     ["Button"],
       "properties":     ["batteryVoltage", "ptvoSwitchAction"],
       "exposes":        ["battery", "action"],
-      "options":        {"action": ["on", "off"]}
+      "options":        {"action": {"enum": ["on", "off"]}}
     }
   ]
 }

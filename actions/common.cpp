@@ -4,46 +4,8 @@
 
 QByteArray Actions::Status::request(const QString &, const QVariant &data)
 {
-    QList <QString> list = {"off", "on", "toggle"};
-    qint8 command = static_cast <qint8> (list.indexOf(data.toString()));
-
-    if (command < 0)
-        return QByteArray();
-
-    return zclHeader(FC_CLUSTER_SPECIFIC, m_transactionId++, static_cast <quint8> (command));
-}
-
-QByteArray Actions::PowerOnStatus::request(const QString &, const QVariant &data)
-{
-    QList <QString> list = {"off", "on", "toggle", "previous"};
-    qint8 value = static_cast <qint8> (list.indexOf(data.toString()));
-
-    if (value < 0 || value > 2)
-        value = 0xFF;
-
-    return writeAttributeRequest(m_transactionId++, m_manufacturerCode, m_attributes.at(0), DATA_TYPE_8BIT_ENUM, QByteArray(reinterpret_cast <char*> (&value), sizeof(value)));
-}
-
-QByteArray Actions::SwitchType::request(const QString &, const QVariant &data)
-{
-    QList <QString> list = {"toggle", "momentary", "multifunction"};
-    qint8 value = static_cast <qint8> (list.indexOf(data.toString()));
-
-    if (value < 0)
-        return QByteArray();
-
-    return writeAttributeRequest(m_transactionId++, m_manufacturerCode, m_attributes.at(0), DATA_TYPE_8BIT_ENUM, QByteArray(reinterpret_cast <char*> (&value), sizeof(value)));
-}
-
-QByteArray Actions::SwitchMode::request(const QString &, const QVariant &data)
-{
-    QList <QString> list = {"on", "off", "toggle"};
-    qint8 value = static_cast <qint8> (list.indexOf(data.toString()));
-
-    if (value < 0)
-        return QByteArray();
-
-    return writeAttributeRequest(m_transactionId++, m_manufacturerCode, m_attributes.at(0), DATA_TYPE_8BIT_ENUM, QByteArray(reinterpret_cast <char*> (&value), sizeof(value)));
+    qint8 command = listIndex({"off", "on", "toggle"}, data);
+    return command < 0 ? QByteArray() : zclHeader(FC_CLUSTER_SPECIFIC, m_transactionId++, static_cast <quint8> (command));
 }
 
 QByteArray Actions::Level::request(const QString &, const QVariant &data)
@@ -73,7 +35,7 @@ QByteArray Actions::Level::request(const QString &, const QVariant &data)
 
         case QVariant::String:
         {
-            QList <QString> list {"moveLevelUp", "moveLevelDown", "stopLevel"}; // TODO: add step actions
+            QList <QString> list {"moveUp", "moveDown", "stop"};
             int index = list.indexOf(data.toString());
 
             switch (index)
@@ -98,28 +60,29 @@ QByteArray Actions::Level::request(const QString &, const QVariant &data)
     }
 }
 
+QByteArray Actions::AnalogOutput::request(const QString &, const QVariant &data)
+{
+    float value = qToLittleEndian(data.toFloat());
+    return writeAttribute(DATA_TYPE_SINGLE_PRECISION, &value, sizeof(value));
+}
+
 QByteArray Actions::CoverStatus::request(const QString &, const QVariant &data)
 {
     QList <QString> list = option("invertCover").toBool() ? QList <QString> {"close", "open", "stop"} : QList <QString> {"open", "close", "stop"};
     qint8 command = static_cast <qint8> (list.indexOf(data.toString()));
-
-    if (command < 0)
-        return QByteArray();
-
-    return zclHeader(FC_CLUSTER_SPECIFIC, m_transactionId++, static_cast <quint8> (command));
+    return command < 0 ? QByteArray() : zclHeader(FC_CLUSTER_SPECIFIC, m_transactionId++, static_cast <quint8> (command));
 }
 
 QByteArray Actions::CoverPosition::request(const QString &, const QVariant &data)
 {
-    const Property &property = endpointProperty();
     quint8 value = static_cast <qint8> (data.toInt());
 
-    property->meta().insert("lastValue", property->value());
+    meta().insert("position", endpointProperty()->value().toMap().value("position"));
 
     if (value > 100)
         value = 100;
 
-    if (option("invertCover").toBool())
+    if (!option("invertCover").toBool())
         value = 100 - value;
 
     return zclHeader(FC_CLUSTER_SPECIFIC, m_transactionId++, 0x05).append(reinterpret_cast <char*> (&value), sizeof(value));
@@ -127,18 +90,53 @@ QByteArray Actions::CoverPosition::request(const QString &, const QVariant &data
 
 QByteArray Actions::CoverTilt::request(const QString &, const QVariant &data)
 {
-    const Property &property = endpointProperty();
     quint8 value = static_cast <qint8> (data.toInt());
 
-    property->meta().insert("lastValue", property->value());
+    meta().insert("tilt", endpointProperty()->value().toMap().value("tilt"));
 
     if (value > 100)
         value = 100;
 
-    if (option("invertCover").toBool())
+    if (!option("invertCover").toBool())
         value = 100 - value;
 
     return zclHeader(FC_CLUSTER_SPECIFIC, m_transactionId++, 0x08).append(reinterpret_cast <char*> (&value), sizeof(value));
+}
+
+QByteArray Actions::Thermostat::request(const QString &name, const QVariant &data)
+{
+    int index = m_actions.indexOf(name);
+
+    switch (index)
+    {
+        case 0: // temperatureOffset
+        case 1: // hysteresis
+        {
+            qint8 value = static_cast <qint8> (data.toDouble() * 10);
+            m_attributes = {static_cast <quint16> (index == 0 ? 0x0010 : 0x0019)};
+            return writeAttribute(DATA_TYPE_8BIT_SIGNED, &value, sizeof(value));
+        }
+
+        case 2: // targetTemperature
+        {
+            qint16 value = qToLittleEndian <qint16> (data.toDouble() * 100);
+            m_attributes = {0x0012};
+            return writeAttribute(DATA_TYPE_16BIT_SIGNED, &value, sizeof(value));
+        }
+
+        case 3: // systemMode
+        {
+            qint8 value = listIndex({"off", "auto", "heat"}, data);
+
+            if (value == 2)
+                value = 0x04;
+
+            m_attributes = {0x001C};
+            return value < 0 ? QByteArray() : writeAttribute(DATA_TYPE_8BIT_ENUM, &value, sizeof(value));
+        }
+    }
+
+    return QByteArray();
 }
 
 QByteArray Actions::ColorHS::request(const QString &, const QVariant &data)
@@ -220,7 +218,39 @@ QByteArray Actions::ColorTemperature::request(const QString &, const QVariant &d
             return zclHeader(FC_CLUSTER_SPECIFIC, m_transactionId++, 0x0A).append(reinterpret_cast <char*> (&payload), sizeof(payload));
         }
 
+        case QVariant::String:
+        {
+            QList <QString> list {"moveUp", "moveDown", "stop"};
+            moveColorTemperatureStruct payload;
+
+            switch (list.indexOf(data.toString()))
+            {
+                case 0: payload.mode = 0x01; break;
+                case 1: payload.mode = 0x03; break;
+                case 2: payload.mode = 0x00; break;
+                default: return QByteArray();
+            }
+
+            payload.rate = qToLittleEndian <quint16> (0x0055);
+            payload.minMireds = qToLittleEndian <quint16> (0x0000);
+            payload.maxMireds = qToLittleEndian <quint16> (0x03E8);
+
+            return zclHeader(FC_CLUSTER_SPECIFIC, m_transactionId++, 0x4B).append(reinterpret_cast <char*> (&payload), sizeof(payload));
+        }
+
         default:
             return QByteArray();
     }
+}
+
+QByteArray Actions::OccupancyTimeout::request(const QString &, const QVariant &data)
+{
+    quint16 value = qToLittleEndian <quint16> (data.toInt());
+    return writeAttribute(DATA_TYPE_16BIT_UNSIGNED, &value, sizeof(value));
+}
+
+QByteArray Actions::ChildLock::request(const QString &, const QVariant &data)
+{
+    quint8 value = data.toBool() ? 0x01 : 0x00;
+    return writeAttribute(DATA_TYPE_8BIT_ENUM, &value, sizeof(value));
 }

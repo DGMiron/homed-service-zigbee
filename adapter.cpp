@@ -1,3 +1,4 @@
+#include <netinet/tcp.h>
 #include <QtEndian>
 #include <QEventLoop>
 #include <QThread>
@@ -42,27 +43,74 @@ Adapter::Adapter(QSettings *config, QObject *parent) : QObject(parent), m_receiv
     }
 
     m_panId = static_cast <quint16> (config->value("zigbee/panid", "0x1A62").toString().toInt(nullptr, 16));
-    m_channel = static_cast <quint8> (config->value("zigbee/channel").toInt());
+    m_channel = static_cast <quint8> (config->value("zigbee/channel", 11).toInt());
+    m_power = static_cast <quint8> (config->value("zigbee/power", 20).toInt());
 
     m_write = config->value("zigbee/write", false).toBool();
     m_portDebug = config->value("debug/port", false).toBool();
     m_adapterDebug = config->value("debug/adapter", false).toBool();
 
+    m_networkKey = QByteArray::fromHex(config->value("security/key", "000102030405060708090a0b0c0d0e0f").toString().remove("0x").toUtf8());
+
     if (m_channel < 11 || m_channel > 26)
         m_channel = 11;
 
-    logInfo << "Using channel" << m_channel;
+    logInfo << "Using channel" << m_channel << "and PAN ID" << QString::asprintf("0x%04x", m_panId);
+    m_defaultKey = QByteArray::fromHex("5a6967426565416c6c69616e63653039");
 
-    m_endpoints.insert(0x01, EndpointData(new EndpointDataObject(PROFILE_HA,  0x0005)));
-    m_endpoints.insert(0x0C, EndpointData(new EndpointDataObject(PROFILE_ZLL, 0x0005)));
-    m_endpoints.insert(0xF2, EndpointData(new EndpointDataObject(PROFILE_GP,  0x0061)));
+    m_endpoints.insert(0x01, EndpointData(new EndpointDataObject(PROFILE_HA,   0x0005)));
+    m_endpoints.insert(0x02, EndpointData(new EndpointDataObject(PROFILE_IPM,  0x0005)));
+    m_endpoints.insert(0x03, EndpointData(new EndpointDataObject(PROFILE_HA,   0x0005)));
+    m_endpoints.insert(0x04, EndpointData(new EndpointDataObject(PROFILE_TA,   0x0005)));
+    m_endpoints.insert(0x05, EndpointData(new EndpointDataObject(PROFILE_PHHC, 0x0005)));
+    m_endpoints.insert(0x06, EndpointData(new EndpointDataObject(PROFILE_AMI,  0x0005)));
+    m_endpoints.insert(0x07, EndpointData(new EndpointDataObject(PROFILE_HA,   0x0005)));
+    m_endpoints.insert(0x08, EndpointData(new EndpointDataObject(PROFILE_HA,   0x0005)));
+    m_endpoints.insert(0x0C, EndpointData(new EndpointDataObject(PROFILE_ZLL,  0x0005)));
+    m_endpoints.insert(0xF2, EndpointData(new EndpointDataObject(PROFILE_GP,   0x0061)));
 
-    m_endpoints.value(0x01)->inClusters()  = {CLUSTER_BASIC, CLUSTER_ON_OFF, CLUSTER_TIME, CLUSTER_OTA_UPGRADE, CLUSTER_POWER_PROFILE, CLUSTER_COLOR_CONTROL};
-    m_endpoints.value(0x01)->outClusters() = {CLUSTER_BASIC, CLUSTER_GROUPS, CLUSTER_SCENES, CLUSTER_ON_OFF, CLUSTER_LEVEL_CONTROL, CLUSTER_POLL_CONTROL, CLUSTER_COLOR_CONTROL, CLUSTER_ILLUMINANCE_MEASUREMENT, CLUSTER_TEMPERATURE_MEASUREMENT, CLUSTER_PRESSURE_MEASUREMENT, CLUSTER_RELATIVE_HUMIDITY, CLUSTER_OCCUPANCY_SENSING, CLUSTER_SOIL_MOISTURE, CLUSTER_IAS_ZONE, CLUSTER_SMART_ENERGY_METERING, CLUSTER_ELECTRICAL_MEASUREMENT, CLUSTER_TOUCHLINK};
-    m_endpoints.value(0xF2)->outClusters() = {CLUSTER_GREEN_POWER};
+    m_endpoints.value(0x01)->inClusters() =
+    {
+        CLUSTER_BASIC,
+        CLUSTER_ON_OFF,
+        CLUSTER_LEVEL_CONTROL,
+        CLUSTER_TIME,
+        CLUSTER_OTA_UPGRADE,
+        CLUSTER_POWER_PROFILE,
+        CLUSTER_COLOR_CONTROL
+    };
+
+    m_endpoints.value(0x01)->outClusters() =
+    {
+        CLUSTER_BASIC,
+        CLUSTER_GROUPS,
+        CLUSTER_SCENES,
+        CLUSTER_ON_OFF,
+        CLUSTER_LEVEL_CONTROL,
+        CLUSTER_POLL_CONTROL,
+        CLUSTER_COLOR_CONTROL,
+        CLUSTER_ILLUMINANCE_MEASUREMENT,
+        CLUSTER_TEMPERATURE_MEASUREMENT,
+        CLUSTER_PRESSURE_MEASUREMENT,
+        CLUSTER_HUMIDITY_MEASUREMENT,
+        CLUSTER_OCCUPANCY_SENSING,
+        CLUSTER_MOISTURE_MEASUREMENT,
+        CLUSTER_CO2_CONCENTRATION,
+        CLUSTER_PM25_CONCENTRATION,
+        CLUSTER_IAS_ZONE,
+        CLUSTER_SMART_ENERGY_METERING,
+        CLUSTER_ELECTRICAL_MEASUREMENT,
+        CLUSTER_TOUCHLINK
+    };
+
+    m_endpoints.value(0xF2)->outClusters() =
+    {
+        CLUSTER_GREEN_POWER
+    };
 
     m_multicast.append(DEFAULT_GROUP);
     m_multicast.append(IKEA_GROUP);
+    m_multicast.append(GREEN_POWER_GROUP);
 
     connect(m_device, &QIODevice::readyRead, this, &Adapter::startTimer);
     connect(m_receiveTimer, &QTimer::timeout, this, &Adapter::readyRead);
@@ -107,6 +155,21 @@ void Adapter::init(void)
     }
 }
 
+bool Adapter::waitForSignal(const QObject *sender, const char *signal, int tiomeout)
+{
+    QEventLoop loop;
+    QTimer timer;
+
+    connect(sender, signal, &loop, SLOT(quit()));
+    connect(&timer, &QTimer::timeout, &loop, &QEventLoop::quit);
+
+    timer.setSingleShot(true);
+    timer.start(tiomeout);
+    loop.exec();
+
+    return timer.isActive();
+}
+
 void Adapter::setPermitJoin(bool enabled)
 {
     if (!permitJoin(enabled))
@@ -126,19 +189,9 @@ void Adapter::setPermitJoin(bool enabled)
     }
 }
 
-bool Adapter::waitForSignal(const QObject *sender, const char *signal, int tiomeout)
+void Adapter::togglePermitJoin(void)
 {
-    QEventLoop loop;
-    QTimer timer;
-
-    connect(sender, signal, &loop, SLOT(quit()));
-    connect(&timer, &QTimer::timeout, &loop, &QEventLoop::quit);
-
-    timer.setSingleShot(true);
-    timer.start(tiomeout);
-    loop.exec();
-
-    return timer.isActive();
+    setPermitJoin(m_permitJoin ? false : true);
 }
 
 bool Adapter::zdoRequest(quint8 id, quint16 networkAddress, quint16 clusterId, const QByteArray &data)
@@ -164,7 +217,7 @@ bool Adapter::bindRequest(quint8 id, quint16 networkAddress, quint8 endpointId, 
     if (request.dstAddressMode != ADDRESS_MODE_GROUP)
         dstAddress = qToLittleEndian(qFromBigEndian(dstAddress));
 
-    return unicastRequest(id, networkAddress, 0x00, 0x00, unbind ? ZDO_UNBIND_REQUEST : ZDO_BIND_REQUEST, QByteArray(1, static_cast <char> (id)).append(reinterpret_cast <char*> (&request), sizeof(request)).append(reinterpret_cast <char*> (&dstAddress), request.dstAddressMode == ADDRESS_MODE_GROUP ? 2 : 8).append(static_cast <char> (dstEndpointId ? dstEndpointId : 1)));
+    return unicastRequest(id, networkAddress, 0x00, 0x00, unbind ? ZDO_UNBIND_REQUEST : ZDO_BIND_REQUEST, QByteArray(1, static_cast <char> (id)).append(reinterpret_cast <char*> (&request), sizeof(request)).append(reinterpret_cast <char*> (&dstAddress), request.dstAddressMode == ADDRESS_MODE_GROUP ? 2 : 8).append(static_cast <char> (dstEndpointId ? dstEndpointId : 0x01)));
 }
 
 bool Adapter::leaveRequest(quint8 id, quint16 networkAddress)
@@ -195,15 +248,15 @@ void Adapter::reset(void)
     switch (list.indexOf(m_reset))
     {
         case 0:
-            GPIO::setStatus(m_bootPin, true);
             GPIO::setStatus(m_resetPin, false);
+            GPIO::setStatus(m_bootPin, true);
             QThread::msleep(RESET_DELAY);
             GPIO::setStatus(m_resetPin, true);
             break;
 
         case 1:
-            m_serial->setDataTerminalReady(false);
             m_serial->setRequestToSend(true);
+            m_serial->setDataTerminalReady(false);
             QThread::msleep(RESET_DELAY);
             m_serial->setRequestToSend(false);
             break;
@@ -246,7 +299,15 @@ void Adapter::socketError(QTcpSocket::SocketError error)
 
 void Adapter::socketConnected(void)
 {
+    int descriptor = m_socket->socketDescriptor(), keepAlive = 1, interval = 10, count = 3;
+
+    setsockopt(descriptor, SOL_SOCKET, SO_KEEPALIVE, &keepAlive, sizeof(keepAlive));
+    setsockopt(descriptor, SOL_TCP, TCP_KEEPIDLE, &interval, sizeof(interval));
+    setsockopt(descriptor, SOL_TCP, TCP_KEEPINTVL, &interval, sizeof(interval));
+    setsockopt(descriptor, SOL_TCP, TCP_KEEPCNT, &count, sizeof(count));
+
     logInfo << "Successfully connected to" << m_adddress.toString();
+
     m_connected = true;
     reset();
 }

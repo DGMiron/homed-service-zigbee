@@ -19,20 +19,20 @@
       "endpointId":     [1, 2]
     },
     {
-      "description":    "Sonoff Temperature and Humidity Sensor SNZB-02",
-      "modelNames":     ["TH01"],
+      "description":    "Sonoff Temperature and Humidity Sensor SNZB-02 or SNZB-02P",
+      "modelNames":     ["SNZB-02P", "TH01"],
       "properties":     ["batteryPercentage", "temperature", "humidity"],
       "bindings":       ["battery", "temperature", "humidity"],
       "reportings":     ["batteryPercentage", "temperature", "humidity"],
       "exposes":        ["battery", "temperature", "humidity"]
     },
     {
-      "description":    "Sonoff Door and Window Sensor SNZB-04",
-      "modelNames":     ["DS01"],
+      "description":    "Sonoff Door and Window Sensor SNZB-04 or SNZB-04P",
+      "modelNames":     ["DS01", "SNZB-04P"],
       "properties":     ["batteryPercentage", "iasContact"],
       "bindings":       ["battery"],
       "reportings":     ["batteryPercentage"],
-      "exposes":        ["battery", "contact", "batteryLow"]
+      "exposes":        ["battery", "contact", "batteryLow", "tamper"]
     },
     {
       "description":    "Sonoff Motion Sensor SNZB-03",
@@ -43,32 +43,74 @@
       "exposes":        ["battery", "occupancy", "batteryLow"]
     },
     {
-      "description":    "Sonoff Wireless Button SNZB-01",
-      "modelNames":     ["WB01", "WB-01"],
-      "properties":     ["batteryPercentage", "sonoffButtonAction"],
+      "description":    "Sonoff Water Leak Sensor SNZB-05P",
+      "modelNames":     ["SNZB-05P"],
+      "properties":     ["batteryPercentage", "iasWaterLeak"],
+      "bindings":       ["battery"],
+      "reportings":     ["batteryPercentage"],
+      "exposes":        ["battery", "waterLeak", "batteryLow"]
+    },
+    {
+      "description":    "Sonoff Wireless Button SNZB-01 or SNZB-01P",
+      "modelNames":     ["SNZB-01P", "WB01", "WB-01"],
+      "properties":     ["batteryPercentage", "customCommands"],
       "bindings":       ["battery", "status"],
       "reportings":     ["batteryPercentage"],
       "exposes":        ["battery", "action"],
-      "options":        {"action": ["singleClick", "doubleClick", "hold"]}
+      "options":        {"customCommands": {"action": {"clusterId": 6}}, "action": {"enum": ["hold", "doubleClick", "singleClick"]}, "powerSource": 3}
     }
   ],
 
   "SONOFF":
   [
     {
+      "description":    "Sonoff 1-Channel Relay BASICZBR3",
+      "modelNames":     ["BASICZBR3"],
+      "properties":     ["status"],
+      "actions":        ["status"],
+      "exposes":        ["switch"]
+    },
+    {
       "description":    "Sonoff 1-Channel Relay ZBMINI",
       "modelNames":     ["01MINIZB"],
       "properties":     ["status"],
       "actions":        ["status"],
-      "exposes":        ["switch"]
+      "exposes":        ["switch"],
+      "options":        {"powerSource": 1}
     },
     {
       "description":    "Sonoff 1-Channel Relay ZBMINI-L or ZBMINI-L2",
       "modelNames":     ["ZBMINI-L", "ZBMINIL2"],
       "properties":     ["status", "powerOnStatus"],
       "actions":        ["status", "powerOnStatus"],
-      "exposes":        ["switch", "powerOnStatus"],
-      "options":        {"powerOnStatus": {"enum": ["on", "off", "previous"]}}
+      "exposes":        ["switch", "powerOnStatus"]
+    },
+    {
+      "description":    "Sonoff Human Presense Sensor SNZB-06P",
+      "modelNames":     ["SNZB-06P"],
+      "properties":     ["occupancy", "customAttributes"],
+      "actions":        ["customAttributes"],
+      "exposes":        ["occupancy", "occupancyTimeout", "sensitivityMode", "illumination"],
+      "options":        {
+                          "customAttributes":
+                          {
+                            "occupancyTimeout": {"type": "value", "clusterId": 1030,  "attributeId": 32,   "dataType": 33, "action": true},
+                            "sensitivityMode":  {"type": "enum",  "clusterId": 1030,  "attributeId": 34,   "dataType": 32, "action": true},
+                            "illumination":     {"type": "enum",  "clusterId": 64529, "attributeId": 8193, "dataType": 32}
+                          },
+                          "occupancyTimeout": {"min": 15, "max": 7200},
+                          "sensitivityMode": {"enum": {"1": "low", "2": "medium", "3": "high"}},
+                          "illumination": {"enum": ["dim", "bright"]}
+                        }
+    },
+    {
+      "description":    "Sonoff Temperature and Humidity Sensor SNZB-02D",
+      "modelNames":     ["SNZB-02D"],
+      "properties":     ["batteryPercentage", "temperature", "humidity"],
+      "bindings":       ["battery", "temperature", "humidity"],
+      "reportings":     ["batteryPercentage", "temperature", "humidity"],
+      "exposes":        ["battery", "temperature", "humidity"],
+      "options":        {"powerSource": 3}
     }
   ]
 }

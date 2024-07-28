@@ -12,7 +12,8 @@ namespace PropertiesLUMI
     public:
 
         Data(const quint16 cluster = CLUSTER_LUMI) : PropertyObject("lumiData", cluster) {}
-        void parseAttribte(quint16 attributeId, const QByteArray &data) override;
+        void parseAttribte(quint16 clusterId, quint16 attributeId, const QByteArray &data) override;
+        void resetValue(void) override;
 
     private:
 
@@ -35,17 +36,7 @@ namespace PropertiesLUMI
     public:
 
         ButtonMode(void) : PropertyObject("buttonMode", CLUSTER_BASIC) {}
-        void parseAttribte(quint16 attributeId, const QByteArray &data) override;
-
-    };
-
-    class SwitchType : public PropertyObject
-    {
-
-    public:
-
-        SwitchType(void) : PropertyObject("switchType", CLUSTER_LUMI) {}
-        void parseAttribte(quint16 attributeId, const QByteArray &data) override;
+        void parseAttribte(quint16 clusterId, quint16 attributeId, const QByteArray &data) override;
 
     };
 
@@ -55,17 +46,7 @@ namespace PropertiesLUMI
     public:
 
         Contact(void) : PropertyObject("contact", CLUSTER_ON_OFF) {}
-        void parseAttribte(quint16 attributeId, const QByteArray &data) override;
-
-    };
-
-    class Interlock : public PropertyObject
-    {
-
-    public:
-
-        Interlock(void) : PropertyObject("interlock", CLUSTER_BINARY_OUTPUT) {}
-        void parseAttribte(quint16 attributeId, const QByteArray &data) override;
+        void parseAttribte(quint16 clusterId, quint16 attributeId, const QByteArray &data) override;
 
     };
 
@@ -75,7 +56,7 @@ namespace PropertiesLUMI
     public:
 
         Power(void) : PropertyObject("power", CLUSTER_ANALOG_INPUT) {}
-        void parseAttribte(quint16 attributeId, const QByteArray &data) override;
+        void parseAttribte(quint16 clusterId, quint16 attributeId, const QByteArray &data) override;
 
     };
 
@@ -85,17 +66,7 @@ namespace PropertiesLUMI
     public:
 
         Cover(void) : PropertyObject("cover", CLUSTER_ANALOG_OUTPUT) {}
-        void parseAttribte(quint16 attributeId, const QByteArray &data) override;
-
-    };
-
-    class Illuminance : public PropertyObject
-    {
-
-    public:
-
-        Illuminance(void) : PropertyObject("illuminance", CLUSTER_ILLUMINANCE_MEASUREMENT) {}
-        void parseAttribte(quint16 attributeId, const QByteArray &data) override;
+        void parseAttribte(quint16 clusterId, quint16 attributeId, const QByteArray &data) override;
 
     };
 
@@ -105,7 +76,7 @@ namespace PropertiesLUMI
     public:
 
         ButtonAction(void) : PropertyObject("action", CLUSTER_ON_OFF) {}
-        void parseAttribte(quint16 attributeId, const QByteArray &data) override;
+        void parseAttribte(quint16 clusterId, quint16 attributeId, const QByteArray &data) override;
 
     };
 
@@ -115,7 +86,17 @@ namespace PropertiesLUMI
     public:
 
         SwitchAction(void) : PropertyObject("action", CLUSTER_MULTISTATE_INPUT) {}
-        void parseAttribte(quint16 attributeId, const QByteArray &data) override;
+        void parseAttribte(quint16 clusterId, quint16 attributeId, const QByteArray &data) override;
+
+    };
+
+    class DimmerAction : public PropertyObject
+    {
+
+    public:
+
+        DimmerAction(void) : PropertyObject("action", CLUSTER_LUMI) {}
+        void parseAttribte(quint16 clusterId, quint16 attributeId, const QByteArray &data) override;
 
     };
 
@@ -125,7 +106,7 @@ namespace PropertiesLUMI
     public:
 
         CubeRotation(void) : PropertyObject("action", CLUSTER_ANALOG_INPUT) {}
-        void parseAttribte(quint16 attributeId, const QByteArray &data) override;
+        void parseAttribte(quint16 clusterId, quint16 attributeId, const QByteArray &data) override;
 
     };
 
@@ -135,7 +116,7 @@ namespace PropertiesLUMI
     public:
 
         CubeMovement(void) :  PropertyObject("action", CLUSTER_MULTISTATE_INPUT) {}
-        void parseAttribte(quint16 attributeId, const QByteArray &data) override;
+        void parseAttribte(quint16 clusterId, quint16 attributeId, const QByteArray &data) override;
 
     };
 
@@ -145,7 +126,7 @@ namespace PropertiesLUMI
     public:
 
         Vibration(void) :  PropertyObject("vibration", CLUSTER_DOOR_LOCK) {}
-        void parseAttribte(quint16 attributeId, const QByteArray &data) override;
+        void parseAttribte(quint16 clusterId, quint16 attributeId, const QByteArray &data) override;
         void resetValue(void) override;
 
     };

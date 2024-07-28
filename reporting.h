@@ -1,5 +1,5 @@
-#ifndef REPORTINGOBJECT_H
-#define REPORTINGOBJECT_H
+#ifndef REPORTING_H
+#define REPORTING_H
 
 #include <QSharedPointer>
 #include "zcl.h"
@@ -96,6 +96,51 @@ namespace Reportings
 
     };
 
+    class AnalogInput : public ReportingObject
+    {
+
+    public:
+
+        AnalogInput(void) :  ReportingObject("analogInput", CLUSTER_ANALOG_INPUT, 0x0055, DATA_TYPE_SINGLE_PRECISION, 0, 600) {}
+
+    };
+
+    class AnalogOutput : public ReportingObject
+    {
+
+    public:
+
+        AnalogOutput(void) :  ReportingObject("analogOutput", CLUSTER_ANALOG_OUTPUT, 0x0055, DATA_TYPE_SINGLE_PRECISION, 0, 600) {}
+
+    };
+
+    class CoverPosition : public ReportingObject
+    {
+
+    public:
+
+        CoverPosition(void) : ReportingObject("coverPosition", CLUSTER_WINDOW_COVERING, 0x0008, DATA_TYPE_8BIT_UNSIGNED, 1, 3600, 1) {}
+
+    };
+
+    class CoverTilt : public ReportingObject
+    {
+
+    public:
+
+        CoverTilt(void) : ReportingObject("coverTilt", CLUSTER_WINDOW_COVERING, 0x0009, DATA_TYPE_8BIT_UNSIGNED, 1, 3600, 1) {}
+
+    };
+
+    class Thermostat : public ReportingObject
+    {
+
+    public:
+
+        Thermostat(void) : ReportingObject("thermostat", CLUSTER_THERMOSTAT, {0x0000, 0x0012}, DATA_TYPE_16BIT_SIGNED, 1, 3600, 1) {}
+
+    };
+
     class ColorHS : public ReportingObject
     {
 
@@ -155,7 +200,16 @@ namespace Reportings
 
     public:
 
-        Humidity(void) : ReportingObject("humidity", CLUSTER_RELATIVE_HUMIDITY, 0x0000, DATA_TYPE_16BIT_UNSIGNED, 10, 3600, 10) {}
+        Humidity(void) : ReportingObject("humidity", CLUSTER_HUMIDITY_MEASUREMENT, 0x0000, DATA_TYPE_16BIT_UNSIGNED, 10, 3600, 10) {}
+
+    };
+
+    class Occupancy : public ReportingObject
+    {
+
+    public:
+
+        Occupancy(void) : ReportingObject("occupancy", CLUSTER_OCCUPANCY_SENSING, 0x0000, DATA_TYPE_8BIT_BITMAP, 0, 600) {}
 
     };
 
@@ -164,7 +218,25 @@ namespace Reportings
 
     public:
 
-        Moisture(void) : ReportingObject("moisture", CLUSTER_SOIL_MOISTURE, 0x0000, DATA_TYPE_16BIT_UNSIGNED, 10, 3600, 10) {}
+        Moisture(void) : ReportingObject("moisture", CLUSTER_MOISTURE_MEASUREMENT, 0x0000, DATA_TYPE_16BIT_UNSIGNED, 10, 3600, 10) {}
+
+    };
+
+    class CO2 : public ReportingObject
+    {
+
+    public:
+
+        CO2(void) : ReportingObject("co2", CLUSTER_CO2_CONCENTRATION, 0x0000, DATA_TYPE_SINGLE_PRECISION, 10, 3600) {}
+
+    };
+
+    class PM25 : public ReportingObject
+    {
+
+    public:
+
+        PM25(void) : ReportingObject("pm25", CLUSTER_PM25_CONCENTRATION, 0x0000, DATA_TYPE_SINGLE_PRECISION, 10, 3600) {}
 
     };
 
@@ -201,6 +273,48 @@ namespace Reportings
     public:
 
         Power(void) : ReportingObject("power", CLUSTER_ELECTRICAL_MEASUREMENT, 0x050B, DATA_TYPE_16BIT_SIGNED, 10, 600, 1) {}
+
+    };
+}
+
+namespace ReportingsEfekta
+{
+    class PMSensor : public ReportingObject
+    {
+
+    public:
+
+        PMSensor(void) : ReportingObject("pmSensor", CLUSTER_PM25_CONCENTRATION, {0x0000, 0x00C8, 0x00C9}, DATA_TYPE_SINGLE_PRECISION, 0, 600) {}
+
+    };
+
+    class VOCSensor : public ReportingObject
+    {
+
+    public:
+
+        VOCSensor(void) : ReportingObject("vocSensor", CLUSTER_ANALOG_INPUT, 0x0055, DATA_TYPE_SINGLE_PRECISION, 0, 600) {}
+
+    };
+}
+
+namespace ReportingsModkam
+{
+    class EventsPerMinute : public ReportingObject
+    {
+
+    public:
+
+        EventsPerMinute(void) : ReportingObject("eventsPerMinute", CLUSTER_ILLUMINANCE_MEASUREMENT, 0xF001, DATA_TYPE_16BIT_UNSIGNED, 0, 60) {}
+
+    };
+
+    class DosePerHour : public ReportingObject
+    {
+
+    public:
+
+        DosePerHour(void) : ReportingObject("dosePerHour", CLUSTER_ILLUMINANCE_MEASUREMENT, 0xF002, DATA_TYPE_32BIT_UNSIGNED, 0, 60) {}
 
     };
 }

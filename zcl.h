@@ -73,36 +73,46 @@
 #define CLUSTER_ON_OFF                              0x0006
 #define CLUSTER_SWITCH_CONFIGURATION                0x0007
 #define CLUSTER_LEVEL_CONTROL                       0x0008
-#define CLUSTER_BINARY_OUTPUT                       0x0010
 #define CLUSTER_TIME                                0x000A
 #define CLUSTER_ANALOG_INPUT                        0x000C
 #define CLUSTER_ANALOG_OUTPUT                       0x000D
+#define CLUSTER_BINARY_OUTPUT                       0x0010
 #define CLUSTER_MULTISTATE_INPUT                    0x0012
+#define CLUSTER_MULTISTATE_VALUE                    0x0014
 #define CLUSTER_OTA_UPGRADE                         0x0019
 #define CLUSTER_POWER_PROFILE                       0x001A
 #define CLUSTER_POLL_CONTROL                        0x0020
 #define CLUSTER_GREEN_POWER                         0x0021
 #define CLUSTER_DOOR_LOCK                           0x0101
 #define CLUSTER_WINDOW_COVERING                     0x0102
+#define CLUSTER_THERMOSTAT                          0x0201
+#define CLUSTER_FAN_CONTROL                         0x0202
+#define CLUSTER_THERMOSTAT_UI_CONFIGURATION         0x0204
 #define CLUSTER_COLOR_CONTROL                       0x0300
 #define CLUSTER_ILLUMINANCE_MEASUREMENT             0x0400
+#define CLUSTER_ILLUMINANCE_LEVEL_SENSING           0x0401
 #define CLUSTER_TEMPERATURE_MEASUREMENT             0x0402
 #define CLUSTER_PRESSURE_MEASUREMENT                0x0403
-#define CLUSTER_RELATIVE_HUMIDITY                   0x0405
-#define CLUSTER_CO2_CONCENTRATION                   0x040D
+#define CLUSTER_HUMIDITY_MEASUREMENT                0x0405
 #define CLUSTER_OCCUPANCY_SENSING                   0x0406
-#define CLUSTER_SOIL_MOISTURE                       0x0408
+#define CLUSTER_MOISTURE_MEASUREMENT                0x0408
+#define CLUSTER_PH_MEASUREMENT                      0x0409
+#define CLUSTER_CO2_CONCENTRATION                   0x040D
+#define CLUSTER_PM25_CONCENTRATION                  0x042A
 #define CLUSTER_IAS_ZONE                            0x0500
+#define CLUSTER_IAS_WD                              0x0502
 #define CLUSTER_SMART_ENERGY_METERING               0x0702
 #define CLUSTER_ELECTRICAL_MEASUREMENT              0x0B04
 #define CLUSTER_TOUCHLINK                           0x1000
 
-#define CLUSTER_LUMI                                0xFCC0
+#define CLUSTER_BYUN                                0x040A
 #define CLUSTER_PERENIO                             0xFC7B
+#define CLUSTER_LUMI                                0xFCC0
 
 #define CLUSTER_TUYA_DATA                           0xEF00
-#define CLUSTER_TUYA_UNKNOWN                        0xE000
 #define CLUSTER_TUYA_SWITCH_MODE                    0xE001
+#define CLUSTER_TUYA_IR_DATA                        0xED00
+#define CLUSTER_TUYA_IR_CONTROL                     0xE004
 
 #define TUYA_TYPE_RAW                               0x00
 #define TUYA_TYPE_BOOL                              0x01
@@ -296,6 +306,14 @@ struct iasZoneEnrollResponseStruct
 {
     quint8  responseCode;
     quint8  zoneId;
+};
+
+struct iasStartWarningStruct
+{
+    quint8  warning;
+    quint16 duration;
+    quint8  dutyCycle;
+    quint8  strobeLevel;
 };
 
 struct touchLinkScanStruct
